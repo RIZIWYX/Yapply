@@ -1,70 +1,73 @@
 <?php
+/**
+ * Conversation privée avec un membre.
+ * Avant : un fichier data/messagerie/<a>_<b>.txt par paire, dont le nom venait
+ * directement du formulaire (risque de lecture d'autres fichiers), et les
+ * messages étaient affichés sans échappement (XSS).
+ */
 require_once __DIR__ . '/../src/header.php';
+$u = exiger_connexion();
 
-$current_username = utilisateur_courant();
-if ($current_username === null) {
-    header('Location: connexion.php');
-    exit;
-}
-
-$autre = $_POST['avec'] ?? '';
-if ($autre === '') {
+$pseudo = trim($_POST['avec'] ?? $_GET['avec'] ?? '');
+$autre  = $pseudo !== '' ? membre_par_pseudo($pseudo) : null;
+if ($autre === null || $autre['id'] === $u['id']) {
     header('Location: discussion.php');
     exit;
 }
 
-// Un fichier de discussion par paire (quel que soit l'ordre)
-$f1 = DOSSIER_MESSAGES . "/{$current_username}_{$autre}.txt";
-$f2 = DOSSIER_MESSAGES . "/{$autre}_{$current_username}.txt";
-$fichier = file_exists($f1) ? $f1 : (file_exists($f2) ? $f2 : $f1);
-if (!file_exists($fichier)) { @file_put_contents($fichier, ''); }
+$pdo = db();
 
 // Envoi d'un message
-if (isset($_POST['message']) && $_POST['message'] !== '') {
-    file_put_contents($fichier, "$current_username -> $autre: " . $_POST['message'] . "\n", FILE_APPEND);
-    file_put_contents(DOSSIER_NOTIFS . '/' . $autre . '.txt', "$current_username vous a envoyé un message\n", FILE_APPEND);
+$texte = trim($_POST['message'] ?? '');
+if ($texte !== '' && mb_strlen($texte) <= 2000) {
+    $pdo->prepare('INSERT INTO messages (expediteur_id, destinataire_id, contenu) VALUES (:de, :a, :c)')
+        ->execute(['de' => $u['id'], 'a' => $autre['id'], 'c' => $texte]);
+    notifier((int) $autre['id'], 'message');
+    // Redirection après POST : un rechargement de page ne renvoie pas le message
+    header('Location: message.php?avec=' . urlencode($autre['pseudo']));
+    exit;
 }
 
-$avatars = charger_avatars();
+// Messages entre les deux membres, dans les deux sens
+$stmt = $pdo->prepare(
+    'SELECT expediteur_id, contenu, envoye_le FROM messages
+     WHERE (expediteur_id = :moi AND destinataire_id = :lui)
+        OR (expediteur_id = :lui AND destinataire_id = :moi)
+     ORDER BY envoye_le, id
+     LIMIT 200'
+);
+$stmt->execute(['moi' => $u['id'], 'lui' => $autre['id']]);
+$messages = $stmt->fetchAll();
 
-debut_page('Discussion avec ' . $autre, 'discussion.css');
+// Les messages reçus sont maintenant lus
+$pdo->prepare('UPDATE messages SET lu_le = now() WHERE destinataire_id = :moi AND expediteur_id = :lui AND lu_le IS NULL')
+    ->execute(['moi' => $u['id'], 'lui' => $autre['id']]);
+
+debut_page('Discussion avec ' . $autre['pseudo'], 'discussion.css');
 barre_navigation('discussion');
 ?>
 <main class="page conversation-page">
   <section class="carte-pleine chat">
     <header class="chat-entete">
       <a class="btn btn-icone btn-discret" href="discussion.php" title="Retour"><i class='bx bx-arrow-back'></i><span class="visually-hidden">Retour</span></a>
-      <img class="avatar-rond" src="<?php echo url_avatar($avatars[$autre] ?? AVATAR_DEFAUT); ?>" alt="">
-      <h2><?php echo $autre; ?></h2>
+      <img class="avatar-rond" src="<?= url_avatar($autre['avatar']) ?>" alt="">
+      <h2><?= e($autre['pseudo']) ?></h2>
     </header>
-
     <div class="messages" id="messages">
-      <?php
-      $messages = file($fichier, FILE_IGNORE_NEW_LINES);
-      if (empty($messages)) {
-          echo "<p class='vide'>Aucune discussion trouvée avec $autre.</p>";
-      } else {
-          foreach ($messages as $msg) {
-              $msg = trim($msg);
-              if (strpos($msg, ' -> ') !== false) {
-                  list($expediteur, $reste) = explode(' -> ', $msg, 2);
-                  $parts = explode(':', $reste, 2);
-                  if (count($parts) === 2) {
-                      $texte  = trim($parts[1]);
-                      $classe = ($expediteur === $current_username) ? 'envoye' : 'recu';
-                      echo "<div class='message $classe'><strong>$expediteur</strong>$texte</div>";
-                  }
-              }
-          }
-      }
-      ?>
+      <?php if (!$messages): ?>
+        <p class="vide">Aucune discussion avec <?= e($autre['pseudo']) ?> pour le moment.</p>
+      <?php endif; ?>
+      <?php foreach ($messages as $m): $envoye = (int) $m['expediteur_id'] === $u['id']; ?>
+        <div class="message <?= $envoye ? 'envoye' : 'recu' ?>">
+          <strong><?= e($envoye ? $u['pseudo'] : $autre['pseudo']) ?></strong><?= nl2br(e($m['contenu'])) ?>
+        </div>
+      <?php endforeach; ?>
     </div>
-
-    <form class="zone-saisie" method="POST">
-      <input type="hidden" name="avec" value="<?php echo $autre; ?>">
+    <form class="zone-saisie" method="POST" action="message.php">
+      <input type="hidden" name="avec" value="<?= e($autre['pseudo']) ?>">
       <label class="champ">
         <span class="visually-hidden">Votre message</span>
-        <input type="text" name="message" placeholder="Écrire un message" autocomplete="off" required autofocus>
+        <input type="text" name="message" placeholder="Écrire un message" autocomplete="off" maxlength="2000" required autofocus>
       </label>
       <button class="btn btn-icone" type="submit" title="Envoyer"><i class='bx bxs-send'></i><span class="visually-hidden">Envoyer</span></button>
     </form>

@@ -1,20 +1,13 @@
 <?php
 /**
  * Configuration commune + utilisateur connecté.
- * Étape A : la session et le compte viennent maintenant de PostgreSQL.
- * Les constantes FICHIER_* restent le temps de convertir les autres pages
- * (posts, amis, messages...) : elles disparaîtront aux étapes C et D.
+ * Toutes les données (comptes, sessions, posts, amis, messages, notifications)
+ * sont dans PostgreSQL : plus aucun fichier texte n'est lu ni écrit.
  */
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/session.php';
 
 define('RACINE', dirname(__DIR__));
-define('DOSSIER_DONNEES', RACINE . '/data');
-
-/* --- Anciens fichiers de données (pages pas encore converties, étape D) --- */
-define('DOSSIER_AMIS',     DOSSIER_DONNEES . '/amis');
-define('DOSSIER_NOTIFS',   DOSSIER_DONNEES . '/notifications');
-define('DOSSIER_MESSAGES', DOSSIER_DONNEES . '/messagerie');
 
 /* --- URL relatives (depuis une page de app/) --- */
 define('ASSETS',     '../assets');
@@ -90,13 +83,11 @@ function exiger_connexion(): array {
     return $u;
 }
 
-/** Table pseudo => avatar de tous les membres (pour les pages pas encore converties). */
-function charger_avatars(): array {
-    $avatars = [];
-    foreach (db()->query('SELECT pseudo, avatar FROM utilisateurs') as $l) {
-        $avatars[$l['pseudo']] = $l['avatar'];
-    }
-    return $avatars;
+/** Cherche un membre par pseudo (sans le hash du mot de passe), ou null. */
+function membre_par_pseudo(string $pseudo): ?array {
+    $stmt = db()->prepare('SELECT id, pseudo, avatar FROM utilisateurs WHERE pseudo = :p');
+    $stmt->execute(['p' => $pseudo]);
+    return $stmt->fetch() ?: null;
 }
 
 /** Vrai si $avatar fait partie des 9 avatars proposés (liste blanche). */
