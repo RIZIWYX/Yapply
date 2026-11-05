@@ -177,3 +177,20 @@ CREATE TABLE IF NOT EXISTS sessions (
     maj_le    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_maj ON sessions (maj_le);
+
+-- ---------------------------------------------------------------------
+-- Images des posts stockées en base (voir migration_02_images.sql)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS images (
+    nom        VARCHAR(80)  PRIMARY KEY
+               CHECK (nom ~ '^[a-f0-9]{32}\.jpg$'),
+    donnees    BYTEA        NOT NULL,
+    taille     INTEGER      NOT NULL CHECK (taille BETWEEN 1 AND 3000000),
+    largeur    INTEGER      NOT NULL,
+    hauteur    INTEGER      NOT NULL,
+    auteur_id  BIGINT       NOT NULL REFERENCES utilisateurs(id) ON DELETE CASCADE,
+    cree_le    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_image_fkey;
+ALTER TABLE posts ADD CONSTRAINT posts_image_fkey
+    FOREIGN KEY (image) REFERENCES images(nom) ON DELETE SET NULL;

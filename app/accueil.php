@@ -77,12 +77,14 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
   <aside class="colonne colonne-gauche">
     <section class="carte composer">
       <h3>Quoi de neuf ?</h3>
-      <form action="post.php" method="post"><?= champ_csrf() ?>
+      <form action="post.php" method="post" enctype="multipart/form-data"><?= champ_csrf() ?>
         <label class="champ">
           <span class="visually-hidden">Votre publication</span>
-          <textarea name="post" placeholder="Écrivez quelque chose..." maxlength="2000" required></textarea>
+          <textarea name="post" placeholder="Écrivez quelque chose..." maxlength="2000"></textarea>
         </label>
         <div class="composer-actions">
+          <label for="photo" class="btn btn-icone btn-secondaire" title="Joindre une image (JPEG, PNG ou WebP, 2 Mo max)"><i class='bx bx-paperclip'></i><span class="visually-hidden">Joindre une image</span></label>
+          <input type="file" id="photo" name="photo" class="visually-hidden" accept="image/jpeg,image/png,image/webp">
           <button type="submit" class="btn">Publier</button>
         </div>
       </form>
@@ -102,7 +104,12 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
           <strong><?= e($p['pseudo']) ?></strong>
         </header>
         <div class="publication-contenu">
-          <p><?= nl2br(e($p['texte'])) ?></p>
+          <?php if ($p['texte'] !== null && $p['texte'] !== ''): ?>
+            <p><?= nl2br(e($p['texte'])) ?></p>
+          <?php endif; ?>
+          <?php if ($p['image'] !== null): ?>
+            <img class="publication-image" src="image.php?nom=<?= e($p['image']) ?>" alt="Image publiée par <?= e($p['pseudo']) ?>" loading="lazy">
+          <?php endif; ?>
         </div>
         <footer class="publication-actions">
           <form action="like.php" method="post"><?= champ_csrf() ?>
