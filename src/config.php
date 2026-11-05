@@ -15,6 +15,50 @@ define('AVATAR_DEFAUT', 'avatar1');
 
 demarrer_session();
 
+/* ------------------------------------------------------------------
+ * Protection CSRF (jeton synchronisé)
+ * Un site tiers peut faire envoyer un formulaire à Yapply par le
+ * navigateur d'un membre connecté (le cookie part tout seul). Il ne peut
+ * pas, en revanche, lire le jeton secret caché dans nos formulaires :
+ * toute requête POST sans le bon jeton est donc refusée.
+ * ------------------------------------------------------------------ */
+
+/** Jeton CSRF de la session (créé à la première utilisation). */
+function jeton_csrf(): string {
+    if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));   // 256 bits imprévisibles
+    }
+    return $_SESSION['csrf'];
+}
+
+/** Champ caché à placer dans CHAQUE <form method="post">. */
+function champ_csrf(): string {
+    return '<input type="hidden" name="csrf" value="' . jeton_csrf() . '">';
+}
+
+/** Nouveau jeton (à appeler après une connexion / inscription). */
+function renouveler_csrf(): void {
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+}
+
+/** Refuse la requête POST si le jeton est absent ou faux. */
+function verifier_csrf(): void {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { return; }
+
+    $recu = $_POST['csrf'] ?? '';
+    // hash_equals : comparaison en temps constant (pas de fuite par le chronométrage)
+    if (!is_string($recu) || empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $recu)) {
+        http_response_code(403);
+        require_once __DIR__ . '/header.php';
+        page_notice('Requête refusée', ['Le formulaire a expiré ou ne vient pas de Yapply. Rechargez la page et réessayez.'], 'accueil.php', "Retour à l'accueil");
+        exit;
+    }
+}
+
+// Vérification automatique : TOUTES les pages chargent config.php,
+// donc toutes les requêtes POST du site sont contrôlées ici, d'un coup.
+verifier_csrf();
+
 /**
  * Crée une notification pour $destinataire de la part de l'utilisateur connecté.
  * $type : post | like | commentaire | ami | message (type ENUM en base).

@@ -13,7 +13,7 @@ debut_page('Personnalisation', 'personnalisation.css');
   <h1 class="bienvenue">Bienvenue, <?php echo e($user); ?> !</h1>
   <p class="sous-titre">Choisissez un avatar et présentez-vous en quelques mots.</p>
 
-  <form class="perso-grille" action="personnalisation_traitement.php" method="post">
+  <form class="perso-grille" action="personnalisation_traitement.php" method="post"><?= champ_csrf() ?>
     <fieldset class="carte choix-avatars">
       <legend><h2>Choisissez votre avatar</h2></legend>
       <div class="grille-avatars">

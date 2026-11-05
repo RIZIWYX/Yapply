@@ -53,6 +53,7 @@ if ($ok) {
     }
     session_regenerate_id(true);   // anti fixation de session
     $_SESSION['user_id'] = (int) $compte['id'];
+    renouveler_csrf();             // nouveau jeton pour la session connectée
     header('Location: accueil.php');
     exit;
 }

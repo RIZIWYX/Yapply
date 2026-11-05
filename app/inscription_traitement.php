@@ -39,6 +39,7 @@ if (!$erreurs) {
 
         session_regenerate_id(true);               // nouvel ID de session (anti-fixation)
         $_SESSION['user_id'] = (int) $stmt->fetchColumn();
+        renouveler_csrf();             // nouveau jeton pour la session connectée
         header('Location: personnalisation.php');
         exit;
     } catch (PDOException $ex) {

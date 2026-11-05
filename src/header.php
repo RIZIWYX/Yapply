@@ -42,7 +42,7 @@ function barre_navigation(string $actif = ''): void {
   </a>
   <nav class="bandeau-nav" aria-label="Navigation principale">
     <a class="<?php echo $classe('accueil'); ?>" href="accueil.php" title="Accueil"><i class='bx bx-home-alt-2'></i><span class="visually-hidden">Accueil</span></a>
-    <form action="accueil.php" method="post">
+    <form action="accueil.php" method="post"><?= champ_csrf() ?>
       <button class="<?php echo $classe('notifications'); ?>" name="afficher" type="submit" title="Notifications"><i class='bx bx-bell'></i><span class="visually-hidden">Notifications</span></button>
     </form>
     <a class="<?php echo $classe('discussion'); ?>" href="discussion.php" title="Discussions"><i class='bx bx-message-rounded-dots'></i><span class="visually-hidden">Discussions</span></a>

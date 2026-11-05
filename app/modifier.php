@@ -27,7 +27,7 @@ barre_navigation('profil');
   <section class="carte">
     <h2>Modifier vos informations</h2>
     <p class="sous-titre">Laissez un champ vide pour conserver la valeur actuelle.</p>
-    <form class="auth-form grille-2" action="modifier_traitement.php" method="post">
+    <form class="auth-form grille-2" action="modifier_traitement.php" method="post"><?= champ_csrf() ?>
       <label class="champ">
         <span class="visually-hidden">Nouveau nom</span>
         <input type="text" name="nom" placeholder="Nouveau nom" autocomplete="family-name">
@@ -64,7 +64,7 @@ barre_navigation('profil');
 
   <section class="carte">
     <h2>Personnaliser votre profil</h2>
-    <form class="perso-form" action="modifier_personnalisation.php" method="post">
+    <form class="perso-form" action="modifier_personnalisation.php" method="post"><?= champ_csrf() ?>
       <label class="champ">
         <span class="visually-hidden">Biographie</span>
         <textarea name="biographie" placeholder="Modifier votre biographie"></textarea>

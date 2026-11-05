@@ -32,7 +32,7 @@ barre_navigation('discussion');
     <?php else: ?>
       <ul class="liste-discussions">
         <?php foreach ($conversations as $c): ?>
-          <li><form action="message.php" method="post">
+          <li><form action="message.php" method="post"><?= champ_csrf() ?>
             <input type="hidden" name="avec" value="<?= e($c['pseudo']) ?>">
             <button class="conversation" type="submit">
               <img class="avatar-rond" src="<?= url_avatar($c['avatar']) ?>" alt="">

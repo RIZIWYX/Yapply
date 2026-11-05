@@ -77,7 +77,7 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
   <aside class="colonne colonne-gauche">
     <section class="carte composer">
       <h3>Quoi de neuf ?</h3>
-      <form action="post.php" method="post">
+      <form action="post.php" method="post"><?= champ_csrf() ?>
         <label class="champ">
           <span class="visually-hidden">Votre publication</span>
           <textarea name="post" placeholder="Écrivez quelque chose..." maxlength="2000" required></textarea>
@@ -105,13 +105,13 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
           <p><?= nl2br(e($p['texte'])) ?></p>
         </div>
         <footer class="publication-actions">
-          <form action="like.php" method="post">
+          <form action="like.php" method="post"><?= champ_csrf() ?>
             <input type="hidden" name="post_id" value="<?= (int) $p['id'] ?>">
             <button class="btn btn-discret" type="submit" title="<?= $p['aime'] ? "Je n'aime plus" : "J'aime" ?>">
               <i class='bx <?= $p['aime'] ? 'bxs-heart' : 'bx-heart' ?>'></i><?= (int) $p['nb_likes'] ?>
             </button>
           </form>
-          <form method="post">
+          <form method="post"><?= champ_csrf() ?>
             <input type="hidden" name="post_id" value="<?= (int) $p['id'] ?>">
             <button class="btn btn-discret" name="commentaire" type="submit" title="Commentaires">
               <i class='bx bx-comment-detail'></i><?= (int) $p['nb_commentaires'] ?>
@@ -125,7 +125,7 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
   <!-- Colonne droite : recherche + amis -->
   <aside class="colonne colonne-droite">
     <section class="carte">
-      <form class="recherche" action="profil.php" method="post">
+      <form class="recherche" action="profil.php" method="post"><?= champ_csrf() ?>
         <label class="champ">
           <span class="visually-hidden">Rechercher des utilisateurs</span>
           <input type="text" name="username" placeholder="Rechercher...">
@@ -141,7 +141,7 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
       <?php else: ?>
         <ul class="liste-amis">
           <?php foreach ($amis as $a): ?>
-            <li><form action="message.php" method="post">
+            <li><form action="message.php" method="post"><?= champ_csrf() ?>
               <input type="hidden" name="avec" value="<?= e($a['pseudo']) ?>">
               <button class="ami" type="submit" title="Écrire à <?= e($a['pseudo']) ?>">
                 <img class="avatar-rond" src="<?= url_avatar($a['avatar']) ?>" alt="">
@@ -160,7 +160,7 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
     <section class="carte-pleine fenetre" aria-label="Commentaires">
       <header class="fenetre-entete">
         <h3>Commentaires</h3>
-        <form method="post"><button type="submit" name="fermer" class="btn btn-icone btn-discret" title="Fermer"><i class='bx bx-x'></i><span class="visually-hidden">Fermer</span></button></form>
+        <form method="post"><?= champ_csrf() ?><button type="submit" name="fermer" class="btn btn-icone btn-discret" title="Fermer"><i class='bx bx-x'></i><span class="visually-hidden">Fermer</span></button></form>
       </header>
       <div class="fenetre-corps">
         <?php if (!$commentaires): ?>
@@ -170,7 +170,7 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
           <p class="commentaire"><strong><?= e($c['pseudo']) ?></strong> : <?= e($c['contenu']) ?></p>
         <?php endforeach; ?>
       </div>
-      <form class="fenetre-saisie" action="commentaire.php" method="post">
+      <form class="fenetre-saisie" action="commentaire.php" method="post"><?= champ_csrf() ?>
         <input type="hidden" name="post_id" value="<?= (int) $post_commente ?>">
         <label class="champ">
           <span class="visually-hidden">Votre commentaire</span>
@@ -187,7 +187,7 @@ barre_navigation($afficher_notifs ? 'notifications' : 'accueil');
     <section class="carte-pleine fenetre" aria-label="Notifications">
       <header class="fenetre-entete">
         <h3>Notifications</h3>
-        <form method="post"><button type="submit" name="fermer" class="btn btn-icone btn-discret" title="Fermer"><i class='bx bx-x'></i><span class="visually-hidden">Fermer</span></button></form>
+        <form method="post"><?= champ_csrf() ?><button type="submit" name="fermer" class="btn btn-icone btn-discret" title="Fermer"><i class='bx bx-x'></i><span class="visually-hidden">Fermer</span></button></form>
       </header>
       <div class="fenetre-corps">
         <?php if (!$notifications): ?>

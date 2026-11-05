@@ -63,7 +63,7 @@ barre_navigation('discussion');
         </div>
       <?php endforeach; ?>
     </div>
-    <form class="zone-saisie" method="POST" action="message.php">
+    <form class="zone-saisie" method="POST" action="message.php"><?= champ_csrf() ?>
       <input type="hidden" name="avec" value="<?= e($autre['pseudo']) ?>">
       <label class="champ">
         <span class="visually-hidden">Votre message</span>

@@ -7,7 +7,7 @@ debut_page('Connexion', 'auth.css');
   <div class="carte auth">
     <a class="auth-logo" href="index.php"><img src="<?php echo ASSETS; ?>/img/logo.png" alt="Accueil Yapply"></a>
     <h2>Connexion</h2>
-    <form class="auth-form" action="connexion_traitement.php" method="post">
+    <form class="auth-form" action="connexion_traitement.php" method="post"><?= champ_csrf() ?>
       <label class="champ">
         <span class="visually-hidden">Pseudo ou adresse mail</span>
         <input type="text" name="userinfo" placeholder="Pseudo ou adresse mail" autocomplete="username" required>

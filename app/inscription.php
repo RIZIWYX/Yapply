@@ -7,7 +7,7 @@ debut_page('Inscription', 'auth.css');
   <div class="carte auth auth-large">
     <a class="auth-logo" href="index.php"><img src="<?php echo ASSETS; ?>/img/logo.png" alt="Accueil Yapply"></a>
     <h2>Inscription</h2>
-    <form class="auth-form grille-2" action="inscription_traitement.php" method="post">
+    <form class="auth-form grille-2" action="inscription_traitement.php" method="post"><?= champ_csrf() ?>
       <label class="champ">
         <span class="visually-hidden">Nom</span>
         <input type="text" name="nom" placeholder="Nom" autocomplete="family-name">

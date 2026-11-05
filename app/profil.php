@@ -43,8 +43,8 @@ barre_navigation();
       <div class="bio"><h3>Bio</h3><p><?= e($membre['bio']) ?></p></div>
     </div>
     <div class="profil-actions">
-      <form action="amis.php" method="POST"><input type="hidden" name="username" value="<?= e($membre['pseudo']) ?>"><button class="btn" type="submit"><i class='bx bx-user-plus'></i>Ajouter en ami</button></form>
-      <form action="message.php" method="POST"><input type="hidden" name="avec" value="<?= e($membre['pseudo']) ?>"><button class="btn btn-secondaire" type="submit"><i class='bx bx-message-rounded-dots'></i>Envoyer un message</button></form>
+      <form action="amis.php" method="POST"><?= champ_csrf() ?><input type="hidden" name="username" value="<?= e($membre['pseudo']) ?>"><button class="btn" type="submit"><i class='bx bx-user-plus'></i>Ajouter en ami</button></form>
+      <form action="message.php" method="POST"><?= champ_csrf() ?><input type="hidden" name="avec" value="<?= e($membre['pseudo']) ?>"><button class="btn btn-secondaire" type="submit"><i class='bx bx-message-rounded-dots'></i>Envoyer un message</button></form>
       <a class="btn btn-discret" href="accueil.php"><i class='bx bx-arrow-back'></i>Retour</a>
     </div>
   </section>
