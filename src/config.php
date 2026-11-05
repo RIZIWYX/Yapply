@@ -1,72 +1,100 @@
 <?php
+/**
+ * Configuration commune + utilisateur connecté.
+ * Étape A : la session et le compte viennent maintenant de PostgreSQL.
+ * Les constantes FICHIER_* restent le temps de convertir les autres pages
+ * (posts, amis, messages...) : elles disparaîtront aux étapes C et D.
+ */
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/session.php';
 
+define('RACINE', dirname(__DIR__));
+define('DOSSIER_DONNEES', RACINE . '/data');
 
-define('RACINE', dirname(__DIR__));            // dossier racine du projet
-define('DOSSIER_DONNEES', RACINE . '/data');   // « base de données » en fichiers texte
-
-/* --- Fichiers de données (chemins disque) --- */
-define('FICHIER_COMPTES',       DOSSIER_DONNEES . '/comptes.txt');         // pseudo;mdp;mdp;mail;prenom;nom
-define('FICHIER_PERSO',         DOSSIER_DONNEES . '/personnalisation.txt'); // pseudo;avatar;bio
-define('FICHIER_POSTS',         DOSSIER_DONNEES . '/posts.txt');            // pseudo;contenu|likes|commentaires
-define('FICHIER_SESSION',       DOSSIER_DONNEES . '/session.txt');          // utilisateur connecté
-define('FICHIER_SESSION_PERSO', DOSSIER_DONNEES . '/session_perso.txt');
-
-/* --- Dossiers de données (chemins disque) --- */
-define('DOSSIER_IMAGES',   DOSSIER_DONNEES . '/images');        // images des posts
+/* --- Anciens fichiers de données (pages pas encore converties) --- */
+define('FICHIER_POSTS',    DOSSIER_DONNEES . '/posts.txt');
+define('DOSSIER_IMAGES',   DOSSIER_DONNEES . '/images');
 define('DOSSIER_AMIS',     DOSSIER_DONNEES . '/amis');
 define('DOSSIER_NOTIFS',   DOSSIER_DONNEES . '/notifications');
 define('DOSSIER_MESSAGES', DOSSIER_DONNEES . '/messagerie');
 
 /* --- URL relatives (depuis une page de app/) --- */
-define('ASSETS',     '../assets');       // css, logo, avatars
-define('URL_IMAGES', '../data/images');  // images des posts (affichage web)
-define('AVATAR_DEFAUT', 'avatar1');      // avatar par défaut
+define('ASSETS',     '../assets');
+define('URL_IMAGES', '../data/images');
+define('AVATAR_DEFAUT', 'avatar1');
 
-/** Renvoie tous les champs du compte connecté (tableau), ou null si personne. */
-function donnees_session(): ?array {
-    if (!file_exists(FICHIER_SESSION)) {
-        return null;
-    }
-    $ligne = trim((string) @file_get_contents(FICHIER_SESSION));
-    if ($ligne === '') {
-        return null;
-    }
-    return explode(';', $ligne);
+demarrer_session();
+
+/** Échappe un texte avant de l'afficher dans du HTML (anti-XSS). */
+function e(?string $texte): string {
+    return htmlspecialchars($texte ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
-/** Renvoie le pseudo de l'utilisateur connecté, ou null. */
+/** Id de l'utilisateur connecté, ou null. */
+function utilisateur_id(): ?int {
+    return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+}
+
+/**
+ * Ligne complète de l'utilisateur connecté (sans le hash du mot de passe),
+ * ou null. Mise en cache pour ne faire qu'une requête par page.
+ */
+function utilisateur(): ?array {
+    static $cache = false;
+    if ($cache !== false) { return $cache; }
+
+    $id = utilisateur_id();
+    if ($id === null) { return $cache = null; }
+
+    $stmt = db()->prepare(
+        'SELECT id, pseudo, mail, prenom, nom, avatar, bio
+         FROM utilisateurs WHERE id = :id'
+    );
+    $stmt->execute(['id' => $id]);
+    $u = $stmt->fetch();
+    if (!$u) {                       // compte supprimé entre-temps
+        $_SESSION = [];
+        return $cache = null;
+    }
+    return $cache = $u;
+}
+
+/** Pseudo de l'utilisateur connecté, ou null. */
 function utilisateur_courant(): ?string {
-    $champs = donnees_session();
-    return $champs[0] ?? null;
+    return utilisateur()['pseudo'] ?? null;
 }
 
-/** Renvoie la ligne de personnalisation du compte connecté : [pseudo, avatar, bio]. */
-function perso_session(): array {
-    if (!file_exists(FICHIER_SESSION_PERSO)) {
-        return [];
-    }
-    return explode(';', trim((string) @file_get_contents(FICHIER_SESSION_PERSO)));
-}
-
-/** Renvoie l'avatar du compte connecté (ex. « avatar3 »). */
+/** Avatar de l'utilisateur connecté (ex. « avatar3 »). */
 function avatar_courant(): string {
-    $p = perso_session();
-    return (isset($p[1]) && $p[1] !== '') ? $p[1] : AVATAR_DEFAUT;
+    return utilisateur()['avatar'] ?? AVATAR_DEFAUT;
 }
 
-/** Renvoie la table pseudo => avatar de tous les membres. */
+/** Redirige vers la connexion si personne n'est connecté. Renvoie l'utilisateur. */
+function exiger_connexion(): array {
+    $u = utilisateur();
+    if ($u === null) {
+        header('Location: connexion.php');
+        exit;
+    }
+    return $u;
+}
+
+/** Table pseudo => avatar de tous les membres (pour les pages pas encore converties). */
 function charger_avatars(): array {
     $avatars = [];
-    if (file_exists(FICHIER_PERSO)) {
-        foreach (file(FICHIER_PERSO, FILE_IGNORE_NEW_LINES) as $l) {
-            $info = explode(';', trim($l));
-            if (count($info) >= 2 && $info[0] !== '' && $info[1] !== '') { $avatars[$info[0]] = $info[1]; }
-        }
+    foreach (db()->query('SELECT pseudo, avatar FROM utilisateurs') as $l) {
+        $avatars[$l['pseudo']] = $l['avatar'];
     }
     return $avatars;
 }
 
+/** Vrai si $avatar fait partie des 9 avatars proposés (liste blanche). */
+function avatar_valide(string $avatar): bool {
+    return (bool) preg_match('/^avatar[1-9]$/', $avatar);
+}
+
 /** URL de l'image d'un avatar. */
 function url_avatar(string $avatar): string {
+    if (!avatar_valide($avatar)) { $avatar = AVATAR_DEFAUT; }
     return ASSETS . '/img/avatar/' . $avatar . '.jpg';
 }

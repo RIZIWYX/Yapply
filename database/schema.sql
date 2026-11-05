@@ -167,3 +167,13 @@ FROM posts p
 JOIN utilisateurs u ON u.id = p.auteur_id;
 
 COMMIT;
+
+-- ---------------------------------------------------------------------
+-- Sessions PHP stockées en base (voir migration_01_sessions.sql)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sessions (
+    id        VARCHAR(128) PRIMARY KEY,
+    donnees   TEXT         NOT NULL DEFAULT '',
+    maj_le    TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_maj ON sessions (maj_le);

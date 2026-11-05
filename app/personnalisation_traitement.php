@@ -1,18 +1,16 @@
 <?php
+/** Première personnalisation (avatar + bio) juste après l'inscription. */
 require_once __DIR__ . '/../src/config.php';
+$u = exiger_connexion();
 
-$username = utilisateur_courant();
-if ($username === null) {
-    header('Location: connexion.php');
-    exit;
-}
+$avatar = $_POST['avatar'] ?? AVATAR_DEFAUT;
+$bio    = trim($_POST['text'] ?? '');
 
-$avatar = $_POST['avatar'] ?? '';
-$bio    = $_POST['text'] ?? '';
+if (!avatar_valide($avatar)) { $avatar = AVATAR_DEFAUT; }  // liste blanche
+$bio = mb_substr($bio, 0, 500);                            // longueur max de la colonne
 
-$ligne = "$username;$avatar;$bio\n";
-file_put_contents(FICHIER_PERSO, $ligne, FILE_APPEND);
-file_put_contents(FICHIER_SESSION_PERSO, $ligne);
+db()->prepare('UPDATE utilisateurs SET avatar = :a, bio = :b WHERE id = :id')
+    ->execute(['a' => $avatar, 'b' => $bio, 'id' => $u['id']]);
 
 header('Location: accueil.php');
 exit;

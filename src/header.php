@@ -46,10 +46,10 @@ function barre_navigation(string $actif = ''): void {
       <button class="<?php echo $classe('notifications'); ?>" name="afficher" type="submit" title="Notifications"><i class='bx bx-bell'></i><span class="visually-hidden">Notifications</span></button>
     </form>
     <a class="<?php echo $classe('discussion'); ?>" href="discussion.php" title="Discussions"><i class='bx bx-message-rounded-dots'></i><span class="visually-hidden">Discussions</span></a>
-    <a class="<?php echo $classe('deconnexion'); ?>" href="index.php" title="Déconnexion"><i class='bx bx-log-out'></i><span class="visually-hidden">Déconnexion</span></a>
+    <a class="<?php echo $classe('deconnexion'); ?>" href="deconnexion.php" title="Déconnexion"><i class='bx bx-log-out'></i><span class="visually-hidden">Déconnexion</span></a>
     <a class="bandeau-profil<?php echo $actif === 'profil' ? ' actif' : ''; ?>" href="profil_utilisateur.php" title="Mon profil">
       <img src="<?php echo url_avatar(avatar_courant()); ?>" alt="">
-      <span><?php echo $pseudo; ?></span>
+      <span><?php echo e($pseudo); ?></span>
     </a>
   </nav>
 </header>
@@ -77,7 +77,7 @@ function page_notice(string $titre, array $messages, string $lien, string $libel
     echo '    <h2>' . htmlspecialchars($titre) . '</h2>' . "\n";
     if ($messages) {
         echo $erreur ? '    <ul>' : '    <ul class="succes">';
-        foreach ($messages as $m) { echo '<li>' . $m . '</li>'; }
+        foreach ($messages as $m) { echo '<li>' . e($m) . '</li>'; }
         echo '</ul>' . "\n";
     }
     echo '    <a class="btn" href="' . $lien . '">' . $libelle . '</a>' . "\n";

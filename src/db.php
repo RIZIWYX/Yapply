@@ -28,15 +28,22 @@ function db(): PDO {
     }
 
     $p = parse_url($url);
-    $dbname = ltrim($p['path'] ?? '', '/');
+    $hote = $p['host'] ?? 'localhost';
+    $estNeon = str_ends_with($hote, '.neon.tech');
+
     $dsn = sprintf(
-        'pgsql:host=%s;port=%d;dbname=%s;sslmode=require',
-        $p['host'], $p['port'] ?? 5432, $dbname
+        'pgsql:host=%s;port=%d;dbname=%s;sslmode=%s',
+        $hote, $p['port'] ?? 5432, ltrim($p['path'] ?? '', '/'),
+        $estNeon ? 'require' : 'prefer'
     );
-    // Neon : on passe l'identifiant du endpoint dans le mot de passe
-    // (méthode officielle Neon pour les libpq anciennes, sans SNI).
-    $endpoint = str_replace('-pooler', '', explode('.', $p['host'])[0]);
-    $motDePasse = 'endpoint=' . $endpoint . ';' . urldecode($p['pass'] ?? '');
+
+    $motDePasse = urldecode($p['pass'] ?? '');
+    if ($estNeon) {
+        // Neon : identifiant du endpoint passé dans le mot de passe
+        // (méthode officielle Neon pour les libpq sans SNI).
+        $endpoint = str_replace('-pooler', '', explode('.', $hote)[0]);
+        $motDePasse = 'endpoint=' . $endpoint . ';' . $motDePasse;
+    }
 
     $pdo = new PDO($dsn, urldecode($p['user'] ?? ''), $motDePasse, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

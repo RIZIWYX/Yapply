@@ -10,7 +10,7 @@ if ($user === null) {
 debut_page('Personnalisation', 'personnalisation.css');
 ?>
 <main class="page personnalisation">
-  <h1 class="bienvenue">Bienvenue, <?php echo $user; ?> !</h1>
+  <h1 class="bienvenue">Bienvenue, <?php echo e($user); ?> !</h1>
   <p class="sous-titre">Choisissez un avatar et présentez-vous en quelques mots.</p>
 
   <form class="perso-grille" action="personnalisation_traitement.php" method="post">
