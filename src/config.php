@@ -11,19 +11,30 @@ require_once __DIR__ . '/session.php';
 define('RACINE', dirname(__DIR__));
 define('DOSSIER_DONNEES', RACINE . '/data');
 
-/* --- Anciens fichiers de données (pages pas encore converties) --- */
-define('FICHIER_POSTS',    DOSSIER_DONNEES . '/posts.txt');
-define('DOSSIER_IMAGES',   DOSSIER_DONNEES . '/images');
+/* --- Anciens fichiers de données (pages pas encore converties, étape D) --- */
 define('DOSSIER_AMIS',     DOSSIER_DONNEES . '/amis');
 define('DOSSIER_NOTIFS',   DOSSIER_DONNEES . '/notifications');
 define('DOSSIER_MESSAGES', DOSSIER_DONNEES . '/messagerie');
 
 /* --- URL relatives (depuis une page de app/) --- */
 define('ASSETS',     '../assets');
-define('URL_IMAGES', '../data/images');
 define('AVATAR_DEFAUT', 'avatar1');
 
 demarrer_session();
+
+/**
+ * Crée une notification pour $destinataire de la part de l'utilisateur connecté.
+ * $type : post | like | commentaire | ami | message (type ENUM en base).
+ * On ne se notifie jamais soi-même.
+ */
+function notifier(int $destinataire, string $type, ?int $postId = null): void {
+    $auteur = utilisateur_id();
+    if ($auteur === null || $auteur === $destinataire) { return; }
+    db()->prepare(
+        'INSERT INTO notifications (destinataire_id, auteur_id, type, post_id)
+         VALUES (:dest, :auteur, CAST(:type AS type_notification), :post)'
+    )->execute(['dest' => $destinataire, 'auteur' => $auteur, 'type' => $type, 'post' => $postId]);
+}
 
 /** Échappe un texte avant de l'afficher dans du HTML (anti-XSS). */
 function e(?string $texte): string {

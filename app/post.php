@@ -1,38 +1,33 @@
 <?php
+/**
+ * Publication d'un post (texte).
+ * Avant : ligne "pseudo;texte|0" dans posts.txt + upload SANS contrôle.
+ * Les images reviendront à l'étape uploads (contrôle du type réel + stockage
+ * Vercel Blob) : Vercel n'a pas de disque où les enregistrer.
+ */
 require_once __DIR__ . '/../src/config.php';
+$u = exiger_connexion();
 
-$username = utilisateur_courant();
-if ($username === null) {
-    header('Location: connexion.php');
+$texte = trim($_POST['post'] ?? '');
+
+if ($texte === '' || mb_strlen($texte) > 2000) {
+    require_once __DIR__ . '/../src/header.php';
+    page_notice('Publication impossible', ['Le message doit contenir entre 1 et 2000 caractères.'], 'accueil.php', 'Retour');
     exit;
 }
 
-$texte = isset($_POST['post']) ? trim($_POST['post']) : '';
-$photo = null;
+$pdo = db();
+$stmt = $pdo->prepare('INSERT INTO posts (auteur_id, texte) VALUES (:auteur, :texte) RETURNING id');
+$stmt->execute(['auteur' => $u['id'], 'texte' => $texte]);
+$postId = (int) $stmt->fetchColumn();
 
-// Upload SANS contrôle de type/taille (limite connue -> à corriger dans la version sécurisée)
-if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
-    $photo = basename($_FILES['photo']['name']);
-    move_uploaded_file($_FILES['photo']['tmp_name'], DOSSIER_IMAGES . '/' . $photo);
+// Notifie les membres qui ont l'auteur dans leur liste d'amis
+// (avant : TOUS les utilisateurs recevaient une notification).
+$abonnes = $pdo->prepare('SELECT utilisateur_id FROM amities WHERE ami_id = :id');
+$abonnes->execute(['id' => $u['id']]);
+foreach ($abonnes->fetchAll(PDO::FETCH_COLUMN) as $dest) {
+    notifier((int) $dest, 'post', $postId);
 }
 
-if ($texte !== '' || $photo !== null) {
-    if ($texte !== '' && $photo !== null) { $contenu = $texte . '|' . $photo; }
-    elseif ($photo !== null)              { $contenu = $photo; }
-    else                                  { $contenu = $texte; }
-
-    file_put_contents(FICHIER_POSTS, "$username;$contenu|0\n", FILE_APPEND);
-
-    // Notifier les autres utilisateurs
-    if (is_dir(DOSSIER_NOTIFS)) {
-        foreach (scandir(DOSSIER_NOTIFS) as $f) {
-            if ($f[0] === '.' || $f === $username . '.txt') { continue; }
-            file_put_contents(DOSSIER_NOTIFS . '/' . $f, "$username a publié un post\n", FILE_APPEND);
-        }
-    }
-    header('Location: accueil.php');
-    exit;
-}
-
-require_once __DIR__ . '/../src/header.php';
-page_notice('Publication impossible', ['Erreur : message vide.'], 'accueil.php', 'Retour');
+header('Location: accueil.php');
+exit;

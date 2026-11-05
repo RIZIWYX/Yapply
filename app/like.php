@@ -1,28 +1,30 @@
 <?php
+/**
+ * Like / unlike d'un post.
+ * Avant : compteur incrémentable à l'infini (on pouvait liker 1000 fois).
+ * Maintenant : une ligne par (post, utilisateur) ; un 2e clic retire le like.
+ */
 require_once __DIR__ . '/../src/config.php';
+$u = exiger_connexion();
 
-$username = utilisateur_courant();
-if ($username === null) {
-    header('Location: connexion.php');
-    exit;
-}
+$postId = filter_var($_POST['post_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if ($postId !== false) {
+    $pdo = db();
+    // Le post existe-t-il ? (et qui en est l'auteur, pour la notification)
+    $stmt = $pdo->prepare('SELECT auteur_id FROM posts WHERE id = :id');
+    $stmt->execute(['id' => $postId]);
+    $auteur = $stmt->fetchColumn();
 
-$post_id = (isset($_POST['post_id']) && $_POST['post_id'] !== '') ? (int) $_POST['post_id'] : -1;
+    if ($auteur !== false) {
+        // Si le like existe déjà, on le retire (bascule)
+        $del = $pdo->prepare('DELETE FROM likes WHERE post_id = :p AND utilisateur_id = :u');
+        $del->execute(['p' => $postId, 'u' => $u['id']]);
 
-if ($post_id >= 0 && file_exists(FICHIER_POSTS)) {
-    $lignes = file(FICHIER_POSTS, FILE_IGNORE_NEW_LINES);
-    if (isset($lignes[$post_id])) {
-        $champs = explode('|', $lignes[$post_id]);
-        if (isset($champs[1])) {
-            $champs[1] = (int) $champs[1] + 1; // incrémente le compteur de likes
-            $lignes[$post_id] = implode('|', $champs);
-            file_put_contents(FICHIER_POSTS, implode("\n", $lignes) . "\n");
-        }
-        if (is_dir(DOSSIER_NOTIFS)) {
-            foreach (scandir(DOSSIER_NOTIFS) as $f) {
-                if ($f[0] === '.' || $f === $username . '.txt') { continue; }
-                file_put_contents(DOSSIER_NOTIFS . '/' . $f, "$username a aimé un post\n", FILE_APPEND);
-            }
+        if ($del->rowCount() === 0) {
+            // ON CONFLICT DO NOTHING : deux clics simultanés ne créent pas d'erreur
+            $pdo->prepare('INSERT INTO likes (post_id, utilisateur_id) VALUES (:p, :u) ON CONFLICT DO NOTHING')
+                ->execute(['p' => $postId, 'u' => $u['id']]);
+            notifier((int) $auteur, 'like', $postId);
         }
     }
 }
