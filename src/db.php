@@ -38,12 +38,6 @@ function db(): PDO {
     );
 
     $motDePasse = urldecode($p['pass'] ?? '');
-    if ($estNeon) {
-        // Neon : identifiant du endpoint passé dans le mot de passe
-        // (méthode officielle Neon pour les libpq sans SNI).
-        $endpoint = str_replace('-pooler', '', explode('.', $hote)[0]);
-        $motDePasse = 'endpoint=' . $endpoint . ';' . $motDePasse;
-    }
 
     $pdo = new PDO($dsn, urldecode($p['user'] ?? ''), $motDePasse, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
