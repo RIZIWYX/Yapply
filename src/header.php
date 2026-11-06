@@ -46,7 +46,9 @@ function barre_navigation(string $actif = ''): void {
       <button class="<?php echo $classe('notifications'); ?>" name="afficher" type="submit" title="Notifications"><i class='bx bx-bell'></i><span class="visually-hidden">Notifications</span></button>
     </form>
     <a class="<?php echo $classe('discussion'); ?>" href="discussion.php" title="Discussions"><i class='bx bx-message-rounded-dots'></i><span class="visually-hidden">Discussions</span></a>
-    <a class="<?php echo $classe('deconnexion'); ?>" href="deconnexion.php" title="Déconnexion"><i class='bx bx-log-out'></i><span class="visually-hidden">Déconnexion</span></a>
+    <form action="deconnexion.php" method="post"><?= champ_csrf() ?>
+      <button class="<?php echo $classe('deconnexion'); ?>" type="submit" title="Déconnexion"><i class='bx bx-log-out'></i><span class="visually-hidden">Déconnexion</span></button>
+    </form>
     <a class="bandeau-profil<?php echo $actif === 'profil' ? ' actif' : ''; ?>" href="profil_utilisateur.php" title="Mon profil">
       <img src="<?php echo url_avatar(avatar_courant()); ?>" alt="">
       <span><?php echo e($pseudo); ?></span>
