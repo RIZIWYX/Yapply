@@ -73,9 +73,5 @@ barre_navigation('discussion');
     </form>
   </section>
 </main>
-<script>
-  // Fait défiler la conversation jusqu'au dernier message
-  const zone = document.getElementById('messages');
-  if (zone) { zone.scrollTop = zone.scrollHeight; }
-</script>
+<script src="<?php echo ASSETS; ?>/js/message.js"></script>
 <?php fin_page(); ?>
