@@ -1,4 +1,4 @@
-# Yapply — version sécurisée
+# Yapply (version sécurisée)
 
 [![Démo](https://img.shields.io/badge/d%C3%A9mo-yapply--riziwyx.vercel.app-1f9d5c)](https://yapply-riziwyx.vercel.app/)
 [![Security Headers A+](https://img.shields.io/badge/security%20headers-A%2B-1f9d5c)](https://securityheaders.com/?q=https%3A%2F%2Fyapply-riziwyx.vercel.app%2Fapp%2Findex.php&followRedirects=on)
@@ -10,14 +10,14 @@ Petit réseau social en **HTML / CSS / PHP**, réalisé en L1 puis **audité et 
 Cette branche (`securite`) remplace le stockage en fichiers texte par **PostgreSQL**
 et tourne en ligne sur **Vercel**.
 
-🌐 **Site en ligne :** https://yapply-riziwyx.vercel.app/
+**Site en ligne :** https://yapply-riziwyx.vercel.app/
 
 ![Démo : publication, commentaires et navigation dans le réseau social](doc/demo.gif)
 
 Projet réalisé dans le cadre de l'UE **Outils de Développement Web** (2024-2025,
 L1 IEEEA) par **Rayane Graïne** et **Accyl Benadjaoud**.
 
-> ⚠️ **La branche `main` est volontairement vulnérable.** C'est la version d'origine,
+> **Attention : la branche `main` est volontairement vulnérable.** C'est la version d'origine,
 > avec les 12 failles décrites dans [l'audit de sécurité](doc/AUDIT_SECURITE_YAPPLY.md).
 > Elle sert uniquement de point de comparaison : ne la déployez pas et ne réutilisez
 > pas son code.
@@ -25,15 +25,15 @@ L1 IEEEA) par **Rayane Graïne** et **Accyl Benadjaoud**.
 | Branche | Contenu |
 |---|---|
 | `main` | Version d'origine (L1) : stockage en fichiers texte, failles laissées en l'état |
-| `securite` | Version sécurisée : PostgreSQL, mots de passe hachés, CSRF, CSP… déployée sur Vercel |
+| `securite` | Version sécurisée (PostgreSQL, mots de passe hachés, CSRF, CSP), déployée sur Vercel |
 
 ---
 
 ## Sécurité
 
 Mesures mises en place sur cette branche, en réponse à [l'audit](doc/AUDIT_SECURITE_YAPPLY.md).
-Le détail faille par faille (catégorie OWASP, CWE, gravité, commit du correctif) est dans
-**[SECURITY.md](SECURITY.md)**.
+La réponse à l'audit, faille par faille (correctif, catégorie OWASP, CWE, commit), est dans
+**[doc/SECURITY.md](doc/SECURITY.md)**.
 
 - **Mots de passe** hachés avec `password_hash()`, et vérification bloquée temporairement
   après 5 échecs en 15 minutes pour un même compte (qu'on saisisse le pseudo ou le mail)
@@ -54,7 +54,7 @@ Le détail faille par faille (catégorie OWASP, CWE, gravité, commit du correct
   ([`database/roles.sql`](database/roles.sql)).
 - **Exposition** : erreurs masquées en production, point d'entrée unique avec liste
   blanche des pages, dossiers `src/`, `database/` et `api/` inaccessibles depuis le web.
-- **Entrées inattendues** : un paramètre envoyé sous forme de tableau (`champ[]=…`) est
+- **Entrées inattendues** : un paramètre envoyé sous forme de tableau (`champ[]=x`) est
   refusé d'emblée (erreur 400) au lieu de faire planter la page.
 - **En-têtes HTTP** : `Content-Security-Policy`, `Strict-Transport-Security`,
   `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` et `Permissions-Policy`.
@@ -91,7 +91,7 @@ Yapply/
 │   ├── roles.sql              # Rôle applicatif à privilèges minimaux
 │   ├── seed.sql               # Données de démonstration (développement uniquement)
 │   └── migration_*.sql        # Mises à jour d'une base déjà créée (Neon)
-├── doc/                       # Audit de sécurité, sujet du projet, captures
+├── doc/                       # Audit de sécurité, réponse à l'audit, sujet, captures
 ├── index.php                  # En local : redirige vers app/index.php
 ├── vercel.json                # Build, routes et en-têtes de sécurité
 └── .env.example               # Modèle de configuration locale (DATABASE_URL)
@@ -158,7 +158,7 @@ php -S localhost:8000
 Puis ouvrir http://localhost:8000. Les comptes de démo sont `alice`, `bob` et `chloe` ;
 leur mot de passe est indiqué en tête de [`database/seed.sql`](database/seed.sql).
 
-> En local, les en-têtes de sécurité de `vercel.json` (CSP, HSTS…) ne sont pas envoyés :
+> En local, les en-têtes de sécurité de `vercel.json` (CSP, HSTS, etc.) ne sont pas envoyés :
 > ils ne s'appliquent que sur Vercel.
 
 ---
