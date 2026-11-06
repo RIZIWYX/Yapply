@@ -25,6 +25,31 @@ if ($password !== '' || $password_conf !== '') {
     if ($password_conf !== $password) { $erreurs[] = "Les mots de passe doivent être identiques."; }
 }
 
+/*
+ * Avant : le mail et le mot de passe se changeaient sans l'ancien mot de passe.
+ * Quelqu'un qui avait la session (cookie volé, ordinateur resté ouvert) pouvait
+ * donc s'approprier le compte définitivement. On exige maintenant le mot de
+ * passe actuel, avec la même limite d'essais que la connexion.
+ */
+$changeMail = strcasecmp($mail, $u['mail']) !== 0;   // mail insensible à la casse (citext)
+$changeMdp  = $password !== '' || $password_conf !== '';
+if ($changeMail || $changeMdp) {
+    $ip = ip_visiteur();
+    if (trop_de_tentatives($u['pseudo'], $ip)) {
+        require_once __DIR__ . '/../src/header.php';
+        page_notice('Trop de tentatives', ['Trop d\'essais de mot de passe. Réessayez dans ' . FENETRE_MIN . ' minutes.'], 'modifier.php', 'Retour');
+        exit;
+    }
+    $actuel = $_POST['password_actuel'] ?? '';
+    $stmt = db()->prepare('SELECT mot_de_passe FROM utilisateurs WHERE id = :id');
+    $stmt->execute(['id' => $u['id']]);
+    $ok = is_string($actuel) && password_verify($actuel, (string) $stmt->fetchColumn());
+    noter_tentative($u['pseudo'], $ip, $ok);
+    if (!$ok) {
+        $erreurs[] = "Mot de passe actuel incorrect : il est obligatoire pour changer l'adresse mail ou le mot de passe.";
+    }
+}
+
 if (!$erreurs) {
     try {
         $sql    = 'UPDATE utilisateurs SET pseudo = :pseudo, mail = :mail, prenom = :prenom, nom = :nom';

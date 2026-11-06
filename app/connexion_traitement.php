@@ -5,27 +5,15 @@
  */
 require_once __DIR__ . '/../src/config.php';
 
-const ESSAIS_MAX    = 5;   // échecs autorisés...
-const FENETRE_MIN   = 15;  // ...par tranche de 15 minutes
-
+// ESSAIS_MAX, FENETRE_MIN et les fonctions anti brute force sont dans src/config.php
 $identifiant = trim($_POST['userinfo'] ?? '');
 $password    = $_POST['password'] ?? '';
-
-// IP du visiteur (Vercel la transmet dans X-Forwarded-For)
-$ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '')[0]);
-if (!filter_var($ip, FILTER_VALIDATE_IP)) { $ip = '0.0.0.0'; }
+$ip          = ip_visiteur();
 
 $pdo = db();
 
 // 1. Trop d'échecs récents pour ce compte ou cette IP ? On bloque avant même de vérifier.
-$stmt = $pdo->prepare(
-    "SELECT count(*) FROM tentatives_connexion
-     WHERE reussie = false
-       AND tente_le > now() - make_interval(mins => :fenetre)
-       AND (identifiant = :id OR ip = CAST(:ip AS inet))"
-);
-$stmt->execute(['fenetre' => FENETRE_MIN, 'id' => $identifiant, 'ip' => $ip]);
-if ((int) $stmt->fetchColumn() >= ESSAIS_MAX) {
+if (trop_de_tentatives($identifiant, $ip)) {
     require_once __DIR__ . '/../src/header.php';
     page_notice('Trop de tentatives', ['Trop d\'essais de connexion. Réessayez dans ' . FENETRE_MIN . ' minutes.'], 'connexion.php', 'Retour');
     exit;
@@ -42,8 +30,7 @@ $hashFactice = '$2y$10$AyRBKAcwomnnUhdj52JSgeYkBmHJpUs9ymasRgIPkOnKaEN08Rm76';
 $ok = password_verify($password, $compte['mot_de_passe'] ?? $hashFactice) && $compte !== false;
 
 // 3. On enregistre la tentative (réussie ou non)
-$pdo->prepare('INSERT INTO tentatives_connexion (identifiant, ip, reussie) VALUES (:id, CAST(:ip AS inet), :ok)')
-    ->execute(['id' => $identifiant, 'ip' => $ip, 'ok' => $ok ? 'true' : 'false']);
+noter_tentative($identifiant, $ip, $ok);
 
 if ($ok) {
     // Si l'algorithme de hachage par défaut a évolué, on met le hash à jour

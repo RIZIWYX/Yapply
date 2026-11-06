@@ -59,6 +59,39 @@ function verifier_csrf(): void {
 // donc toutes les requêtes POST du site sont contrôlées ici, d'un coup.
 verifier_csrf();
 
+/* ------------------------------------------------------------------
+ * Anti brute force (table tentatives_connexion)
+ * Partagé par la connexion ET par la modification du compte, qui demande
+ * le mot de passe actuel : sans limite, ce formulaire permettrait de
+ * deviner le mot de passe d'un compte dont on aurait volé la session.
+ * ------------------------------------------------------------------ */
+const ESSAIS_MAX  = 5;   // échecs autorisés...
+const FENETRE_MIN = 15;  // ...par tranche de 15 minutes
+
+/** IP du visiteur (Vercel la transmet dans X-Forwarded-For). */
+function ip_visiteur(): string {
+    $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '')[0]);
+    return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
+}
+
+/** Vrai si ce compte ou cette IP a trop d'échecs récents. */
+function trop_de_tentatives(string $identifiant, string $ip): bool {
+    $stmt = db()->prepare(
+        "SELECT count(*) FROM tentatives_connexion
+         WHERE reussie = false
+           AND tente_le > now() - make_interval(mins => :fenetre)
+           AND (identifiant = :id OR ip = CAST(:ip AS inet))"
+    );
+    $stmt->execute(['fenetre' => FENETRE_MIN, 'id' => $identifiant, 'ip' => $ip]);
+    return (int) $stmt->fetchColumn() >= ESSAIS_MAX;
+}
+
+/** Enregistre une vérification de mot de passe, réussie ou non. */
+function noter_tentative(string $identifiant, string $ip, bool $reussie): void {
+    db()->prepare('INSERT INTO tentatives_connexion (identifiant, ip, reussie) VALUES (:id, CAST(:ip AS inet), :ok)')
+        ->execute(['id' => $identifiant, 'ip' => $ip, 'ok' => $reussie ? 'true' : 'false']);
+}
+
 /**
  * Crée une notification pour $destinataire de la part de l'utilisateur connecté.
  * $type : post | like | commentaire | ami | message (type ENUM en base).

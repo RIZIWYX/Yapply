@@ -58,6 +58,11 @@ barre_navigation('profil');
         <input type="password" name="password_conf" placeholder="Confirmez le nouveau mot de passe" autocomplete="new-password">
         <i class='bx bxs-lock-alt'></i>
       </label>
+      <label class="champ pleine-largeur">
+        <span class="visually-hidden">Mot de passe actuel (obligatoire pour changer l'adresse mail ou le mot de passe)</span>
+        <input type="password" name="password_actuel" placeholder="Mot de passe actuel (obligatoire pour changer le mail ou le mot de passe)" autocomplete="current-password">
+        <i class='bx bxs-key'></i>
+      </label>
       <button class="btn btn-bloc pleine-largeur" type="submit">Valider</button>
     </form>
   </section>
