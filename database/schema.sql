@@ -133,7 +133,7 @@ CREATE INDEX idx_notifications_dest ON notifications (destinataire_id, lu, cree_
 -- ---------------------------------------------------------------------
 CREATE TABLE tentatives_connexion (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    identifiant    CITEXT       NOT NULL,           -- pseudo saisi
+    identifiant    CITEXT       NOT NULL,           -- « compte:<id> » si le compte existe, sinon le texte saisi
     ip             INET         NOT NULL,
     reussie        BOOLEAN      NOT NULL,
     tente_le       TIMESTAMPTZ  NOT NULL DEFAULT now()

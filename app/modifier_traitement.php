@@ -34,8 +34,9 @@ if ($password !== '' || $password_conf !== '') {
 $changeMail = strcasecmp($mail, $u['mail']) !== 0;   // mail insensible à la casse (citext)
 $changeMdp  = $password !== '' || $password_conf !== '';
 if ($changeMail || $changeMdp) {
-    $ip = ip_visiteur();
-    if (trop_de_tentatives($u['pseudo'], $ip)) {
+    $ip  = ip_visiteur();
+    $cle = cle_compte((int) $u['id']);   // même compteur que la connexion, et un changement de pseudo ne le remet pas à zéro
+    if (trop_de_tentatives($cle, $ip)) {
         require_once __DIR__ . '/../src/header.php';
         page_notice('Trop de tentatives', ['Trop d\'essais de mot de passe. Réessayez dans ' . FENETRE_MIN . ' minutes.'], 'modifier.php', 'Retour');
         exit;
@@ -44,7 +45,7 @@ if ($changeMail || $changeMdp) {
     $stmt = db()->prepare('SELECT mot_de_passe FROM utilisateurs WHERE id = :id');
     $stmt->execute(['id' => $u['id']]);
     $ok = is_string($actuel) && password_verify($actuel, (string) $stmt->fetchColumn());
-    noter_tentative($u['pseudo'], $ip, $ok);
+    noter_tentative($cle, $ip, $ok);
     if (!$ok) {
         $erreurs[] = "Mot de passe actuel incorrect : il est obligatoire pour changer l'adresse mail ou le mot de passe.";
     }

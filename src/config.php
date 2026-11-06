@@ -13,6 +13,21 @@ define('RACINE', dirname(__DIR__));
 define('ASSETS',     '../assets');
 define('AVATAR_DEFAUT', 'avatar1');
 
+/*
+ * Aucun formulaire de Yapply n'envoie de tableau (champ[]=...). Avant, un
+ * paramètre comme ?avec[]=x faisait planter trim() ou preg_match() (erreur 500).
+ * On refuse donc ces requêtes ici, une fois pour toutes, avant tout traitement.
+ */
+foreach ([$_GET, $_POST] as $parametres) {
+    foreach ($parametres as $valeur) {
+        if (!is_string($valeur)) {
+            http_response_code(400);
+            header('Content-Type: text/plain; charset=utf-8');
+            exit('Requête invalide.');
+        }
+    }
+}
+
 demarrer_session();
 
 /* ------------------------------------------------------------------
@@ -84,6 +99,17 @@ function trop_de_tentatives(string $identifiant, string $ip): bool {
     );
     $stmt->execute(['fenetre' => FENETRE_MIN, 'id' => $identifiant, 'ip' => $ip]);
     return (int) $stmt->fetchColumn() >= ESSAIS_MAX;
+}
+
+/**
+ * Clé sous laquelle on compte les échecs d'un compte existant.
+ * Avant : on comptait le texte saisi, donc le pseudo et le mail d'un même compte
+ * avaient chacun leur compteur (10 essais au lieu de 5), et changer de pseudo
+ * remettait le compteur à zéro. L'id, lui, ne change jamais.
+ * Un pseudo ne peut pas contenir « : », donc pas de confusion avec un texte saisi.
+ */
+function cle_compte(int $id): string {
+    return 'compte:' . $id;
 }
 
 /** Enregistre une vérification de mot de passe, réussie ou non. */

@@ -26,7 +26,7 @@ $page = $_GET['__page'] ?? 'index.php';
 unset($_GET['__page']);
 
 $dossierApp = realpath(__DIR__ . '/../app');
-if (!preg_match('/^[a-z_]+\.php$/', $page)) {
+if (!is_string($page) || !preg_match('/^[a-z_]+\.php$/', $page)) {   // ?__page[]=x : refusé
     http_response_code(404);
     exit('Page introuvable');
 }

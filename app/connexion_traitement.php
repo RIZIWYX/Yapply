@@ -12,17 +12,22 @@ $ip          = ip_visiteur();
 
 $pdo = db();
 
-// 1. Trop d'échecs récents pour ce compte ou cette IP ? On bloque avant même de vérifier.
-if (trop_de_tentatives($identifiant, $ip)) {
+// 1. Recherche du compte par pseudo OU mail (citext : insensible à la casse)
+$stmt = $pdo->prepare('SELECT id, mot_de_passe FROM utilisateurs WHERE pseudo = :v OR mail = :v');
+$stmt->execute(['v' => $identifiant]);
+$compte = $stmt->fetch();
+
+// Les échecs sont comptés par COMPTE : pseudo ou mail, c'est le même compteur.
+// Pour un compte qui n'existe pas, on compte le texte saisi (même comportement
+// vu de l'extérieur : on ne révèle pas si le compte existe).
+$cle = $compte !== false ? cle_compte((int) $compte['id']) : $identifiant;
+
+// 2. Trop d'échecs récents pour ce compte ou cette IP ? On bloque avant même de vérifier.
+if (trop_de_tentatives($cle, $ip)) {
     require_once __DIR__ . '/../src/header.php';
     page_notice('Trop de tentatives', ['Trop d\'essais de connexion. Réessayez dans ' . FENETRE_MIN . ' minutes.'], 'connexion.php', 'Retour');
     exit;
 }
-
-// 2. Recherche du compte par pseudo OU mail (citext : insensible à la casse)
-$stmt = $pdo->prepare('SELECT id, mot_de_passe FROM utilisateurs WHERE pseudo = :v OR mail = :v');
-$stmt->execute(['v' => $identifiant]);
-$compte = $stmt->fetch();
 
 // password_verify compare au hash ; si le compte n'existe pas on vérifie quand même
 // un faux hash, pour que le temps de réponse ne révèle pas si le pseudo existe.
@@ -30,7 +35,7 @@ $hashFactice = '$2y$10$AyRBKAcwomnnUhdj52JSgeYkBmHJpUs9ymasRgIPkOnKaEN08Rm76';
 $ok = password_verify($password, $compte['mot_de_passe'] ?? $hashFactice) && $compte !== false;
 
 // 3. On enregistre la tentative (réussie ou non)
-noter_tentative($identifiant, $ip, $ok);
+noter_tentative($cle, $ip, $ok);
 
 if ($ok) {
     // Si l'algorithme de hachage par défaut a évolué, on met le hash à jour
