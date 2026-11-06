@@ -33,10 +33,13 @@ L1 IEEEA) par **Rayane Graïne** et **Accyl Benadjaoud**.
 
 Mesures mises en place sur cette branche, en réponse à [l'audit](doc/AUDIT_SECURITE_YAPPLY.md) :
 
-- **Mots de passe** hachés avec `password_hash()`, et connexion bloquée temporairement
-  après trop d'échecs pour un même compte ou une même IP.
+- **Mots de passe** hachés avec `password_hash()`, et vérification bloquée temporairement
+  après trop d'échecs pour un même compte ou une même IP (connexion et modification du compte).
+- **Compte** : le mot de passe actuel est demandé pour changer l'adresse mail ou le
+  mot de passe.
 - **Sessions** PHP natives stockées en base, cookie `HttpOnly`, `SameSite=Lax` et
-  `Secure` en HTTPS, mode strict, expiration après 30 minutes d'inactivité.
+  `Secure` en HTTPS, mode strict (identifiant inconnu ou expiré refusé), expiration
+  après 30 minutes d'inactivité vérifiée à chaque requête.
 - **CSRF** : jeton vérifié automatiquement sur toutes les requêtes POST.
 - **Injections SQL** : uniquement des requêtes préparées (PDO).
 - **XSS** : échappement HTML des données affichées, et CSP stricte (aucun script ni
