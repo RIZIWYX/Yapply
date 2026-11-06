@@ -34,13 +34,15 @@ L1 IEEEA) par **Rayane Graïne** et **Accyl Benadjaoud**.
 Mesures mises en place sur cette branche, en réponse à [l'audit](doc/AUDIT_SECURITE_YAPPLY.md) :
 
 - **Mots de passe** hachés avec `password_hash()`, et vérification bloquée temporairement
-  après trop d'échecs pour un même compte ou une même IP (connexion et modification du compte).
+  après 5 échecs en 15 minutes pour un même compte (qu'on saisisse le pseudo ou le mail)
+  ou une même IP, à la connexion comme à la modification du compte.
 - **Compte** : le mot de passe actuel est demandé pour changer l'adresse mail ou le
   mot de passe.
 - **Sessions** PHP natives stockées en base, cookie `HttpOnly`, `SameSite=Lax` et
   `Secure` en HTTPS, mode strict (identifiant inconnu ou expiré refusé), expiration
   après 30 minutes d'inactivité vérifiée à chaque requête.
-- **CSRF** : jeton vérifié automatiquement sur toutes les requêtes POST.
+- **CSRF** : jeton vérifié automatiquement sur toutes les requêtes POST, y compris la
+  déconnexion (qui n'est plus un simple lien).
 - **Injections SQL** : uniquement des requêtes préparées (PDO).
 - **XSS** : échappement HTML des données affichées, et CSP stricte (aucun script ni
   style inline autorisé).
@@ -50,6 +52,8 @@ Mesures mises en place sur cette branche, en réponse à [l'audit](doc/AUDIT_SEC
   ([`database/roles.sql`](database/roles.sql)).
 - **Exposition** : erreurs masquées en production, point d'entrée unique avec liste
   blanche des pages, dossiers `src/`, `database/` et `api/` inaccessibles depuis le web.
+- **Entrées inattendues** : un paramètre envoyé sous forme de tableau (`champ[]=…`) est
+  refusé d'emblée (erreur 400) au lieu de faire planter la page.
 - **En-têtes HTTP** : `Content-Security-Policy`, `Strict-Transport-Security`,
   `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` et `Permissions-Policy`.
 
