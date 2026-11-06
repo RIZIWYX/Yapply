@@ -6,16 +6,54 @@
  */
 require_once __DIR__ . '/db.php';
 
-final class SessionEnBase implements SessionHandlerInterface
+/** Durée maximale d'inactivité d'une session, en secondes (30 min). */
+const SESSION_DUREE_MAX = 1800;
+
+/**
+ * SessionUpdateTimestampHandlerInterface ajoute validateId() et updateTimestamp().
+ * Sans validateId(), PHP acceptait n'importe quel identifiant de session, même
+ * inventé ou expiré : l'option use_strict_mode n'avait donc aucun effet.
+ */
+final class SessionEnBase implements SessionHandlerInterface, SessionUpdateTimestampHandlerInterface
 {
     public function open(string $chemin, string $nom): bool { return true; }
     public function close(): bool { return true; }
 
+    /**
+     * Avant : la session était renvoyée quel que soit son âge. L'expiration
+     * dépendait uniquement du ramasse-miettes (gc), qui peut ne jamais tourner
+     * (désactivé par défaut sur Ubuntu) : un cookie volé restait valable à vie.
+     * Maintenant, une session inactive depuis plus de 30 min est ignorée.
+     */
     public function read(string $id): string|false
     {
-        $stmt = db()->prepare('SELECT donnees FROM sessions WHERE id = :id');
-        $stmt->execute(['id' => $id]);
+        $stmt = db()->prepare(
+            'SELECT donnees FROM sessions
+             WHERE id = :id AND maj_le > now() - make_interval(secs => :duree)'
+        );
+        $stmt->execute(['id' => $id, 'duree' => SESSION_DUREE_MAX]);
         return (string) ($stmt->fetchColumn() ?: '');
+    }
+
+    /**
+     * Appelée par PHP (mode strict) quand le navigateur envoie un identifiant :
+     * s'il est inconnu ou expiré, PHP en génère un nouveau au lieu de l'adopter.
+     */
+    public function validateId(string $id): bool
+    {
+        $stmt = db()->prepare(
+            'SELECT 1 FROM sessions
+             WHERE id = :id AND maj_le > now() - make_interval(secs => :duree)'
+        );
+        $stmt->execute(['id' => $id, 'duree' => SESSION_DUREE_MAX]);
+        return $stmt->fetchColumn() !== false;
+    }
+
+    /** Session lue mais pas modifiée : on repousse seulement son expiration. */
+    public function updateTimestamp(string $id, string $donnees): bool
+    {
+        return db()->prepare('UPDATE sessions SET maj_le = now() WHERE id = :id')
+            ->execute(['id' => $id]);
     }
 
     public function write(string $id, string $donnees): bool
@@ -50,7 +88,10 @@ function demarrer_session(): void
 
     ini_set('session.use_strict_mode', '1');   // refuse les ID de session inventés
     ini_set('session.use_only_cookies', '1');  // jamais d'ID dans l'URL
-    ini_set('session.gc_maxlifetime', '1800'); // 30 min d'inactivité
+    ini_set('session.gc_maxlifetime', (string) SESSION_DUREE_MAX); // 30 min d'inactivité
+    // Ménage des sessions expirées dans 1 % des requêtes (désactivé par défaut sur Ubuntu)
+    ini_set('session.gc_probability', '1');
+    ini_set('session.gc_divisor', '100');
     session_name('yapply_sid');
     session_set_cookie_params([
         'lifetime' => 0,
