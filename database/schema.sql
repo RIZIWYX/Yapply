@@ -1,5 +1,5 @@
 -- =====================================================================
---  Yappli - Schéma PostgreSQL (branche securite)
+--  Yapply - Schéma PostgreSQL (branche securite)
 --  Remplace le stockage en fichiers texte de data/ :
 --    comptes.txt + personnalisation.txt  -> utilisateurs
 --    posts.txt (texte|image|likes|coms)  -> posts, likes, commentaires
@@ -7,7 +7,7 @@
 --    data/messagerie/<a>_<b>.txt         -> messages
 --    data/notifications/<pseudo>.txt     -> notifications
 --    session.txt / session_perso.txt     -> supprimés : sessions PHP natives
---  PostgreSQL 14+   |   psql -d yappli -f database/schema.sql
+--  PostgreSQL 14+   |   psql -d yapply -f database/schema.sql
 -- =====================================================================
 
 BEGIN;

@@ -1,5 +1,5 @@
 -- =====================================================================
---  Yappli - Données de démonstration (développement uniquement)
+--  Yapply - Données de démonstration (développement uniquement)
 --  Mot de passe des comptes de démo : demo1234
 --  (hash bcrypt généré avec password_hash('demo1234', PASSWORD_DEFAULT))
 -- =====================================================================
@@ -11,7 +11,7 @@ INSERT INTO utilisateurs (pseudo, mail, mot_de_passe, prenom, nom, avatar, bio) 
  ('chloe', 'chloe@exemple.fr', '$2y$10$0BXx9k0Mhmi1radr9MSyjOQXe1fUmk4OW.aM9/Tr4DHXayJkC5Cu2', 'Chloé', 'Petit',  'avatar7', 'Étudiante à Rouen.');
 
 INSERT INTO posts (auteur_id, texte) VALUES
- (1, 'Premier post sur la version sécurisée de Yappli !'),
+ (1, 'Premier post sur la version sécurisée de Yapply !'),
  (2, 'Quelqu''un pour réviser les bases de données ce soir ?');
 
 INSERT INTO likes (post_id, utilisateur_id) VALUES (1, 2), (1, 3), (2, 1);

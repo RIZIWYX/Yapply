@@ -117,10 +117,10 @@ Depuis la **racine du projet** :
 
 ```bash
 sudo service postgresql start
-sudo -u postgres createdb yappli
-sudo -u postgres psql -d yappli < database/schema.sql
-sudo -u postgres psql -d yappli < database/roles.sql
-sudo -u postgres psql -d yappli < database/seed.sql
+sudo -u postgres createdb yapply
+sudo -u postgres psql -d yapply < database/schema.sql
+sudo -u postgres psql -d yapply < database/roles.sql
+sudo -u postgres psql -d yapply < database/seed.sql
 ```
 
 Les fichiers `migration_*.sql` ne sont pas nécessaires : leur contenu est déjà dans
@@ -128,11 +128,11 @@ Les fichiers `migration_*.sql` ne sont pas nécessaires : leur contenu est déj�
 
 ### 2. Donner un mot de passe au rôle de l'application
 
-`roles.sql` crée le rôle `yappli_app` avec un mot de passe provisoire. Remplacez-le
+`roles.sql` crée le rôle `yapply_app` avec un mot de passe provisoire. Remplacez-le
 (lettres et chiffres uniquement, pour ne pas casser l'URL de connexion) :
 
 ```bash
-sudo -u postgres psql -d yappli -c "ALTER ROLE yappli_app PASSWORD 'votre_mot_de_passe'"
+sudo -u postgres psql -d yapply -c "ALTER ROLE yapply_app PASSWORD 'votre_mot_de_passe'"
 ```
 
 ### 3. Configurer `.env`
@@ -144,7 +144,7 @@ cp .env.example .env
 Puis remplacer la ligne `DATABASE_URL` par :
 
 ```
-DATABASE_URL=postgresql://yappli_app:votre_mot_de_passe@localhost:5432/yappli
+DATABASE_URL=postgresql://yapply_app:votre_mot_de_passe@localhost:5432/yapply
 ```
 
 Le fichier `.env` est ignoré par Git : il ne doit jamais être commité.
