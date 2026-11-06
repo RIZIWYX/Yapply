@@ -18,7 +18,7 @@ set_exception_handler(function (Throwable $e): void {
         header('Content-Type: text/html; charset=utf-8');
     }
     echo '<!DOCTYPE html><html lang="fr"><meta charset="utf-8"><title>Erreur · Yapply</title>'
-       . '<p style="font-family:sans-serif;text-align:center;margin-top:20vh">'
+       . '<p>'
        . 'Une erreur est survenue. Réessayez dans un instant.</p></html>';
 });
 
