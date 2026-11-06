@@ -1,40 +1,48 @@
 <?php
+/**
+ * Publication d'un post : texte et/ou image.
+ * L'image passe par les 5 contrôles de src/images.php avant d'être stockée.
+ */
 require_once __DIR__ . '/../src/config.php';
+require_once __DIR__ . '/../src/images.php';
+$u = exiger_connexion();
 
-$username = utilisateur_courant();
-if ($username === null) {
-    header('Location: connexion.html');
+$texte  = trim($_POST['post'] ?? '');
+$erreur = null;
+$image  = null;
+
+try {
+    $image = traiter_image_envoyee('photo');
+} catch (RuntimeException $ex) {
+    $erreur = $ex->getMessage();
+}
+
+if ($erreur === null && $texte === '' && $image === null) {
+    $erreur = 'Écrivez un message ou ajoutez une image.';
+}
+if ($erreur === null && mb_strlen($texte) > 2000) {
+    $erreur = 'Le message ne doit pas dépasser 2000 caractères.';
+}
+if ($erreur !== null) {
+    require_once __DIR__ . '/../src/header.php';
+    page_notice('Publication impossible', [$erreur], 'accueil.php', 'Retour');
     exit;
 }
 
-$texte = isset($_POST['post']) ? trim($_POST['post']) : '';
-$photo = null;
+$pdo = db();
+$pdo->beginTransaction();   // image + post enregistrés ensemble, ou pas du tout
+$nomImage = $image !== null ? enregistrer_image($image, $u['id']) : null;
+$stmt = $pdo->prepare('INSERT INTO posts (auteur_id, texte, image) VALUES (:auteur, :texte, :image) RETURNING id');
+$stmt->execute(['auteur' => $u['id'], 'texte' => $texte !== '' ? $texte : null, 'image' => $nomImage]);
+$postId = (int) $stmt->fetchColumn();
+$pdo->commit();
 
-// Upload SANS contrôle de type/taille (limite connue -> à corriger dans la version sécurisée)
-if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
-    $photo = basename($_FILES['photo']['name']);
-    move_uploaded_file($_FILES['photo']['tmp_name'], DOSSIER_IMAGES . '/' . $photo);
+// Notifie les membres qui ont l'auteur dans leur liste d'amis
+$abonnes = $pdo->prepare('SELECT utilisateur_id FROM amities WHERE ami_id = :id');
+$abonnes->execute(['id' => $u['id']]);
+foreach ($abonnes->fetchAll(PDO::FETCH_COLUMN) as $dest) {
+    notifier((int) $dest, 'post', $postId);
 }
 
-if ($texte !== '' || $photo !== null) {
-    if ($texte !== '' && $photo !== null) { $contenu = $texte . '|' . $photo; }
-    elseif ($photo !== null)              { $contenu = $photo; }
-    else                                  { $contenu = $texte; }
-
-    file_put_contents(FICHIER_POSTS, "$username;$contenu|0\n", FILE_APPEND);
-
-    // Notifier les autres utilisateurs
-    if (is_dir(DOSSIER_NOTIFS)) {
-        foreach (scandir(DOSSIER_NOTIFS) as $f) {
-            if ($f[0] === '.' || $f === $username . '.txt') { continue; }
-            file_put_contents(DOSSIER_NOTIFS . '/' . $f, "$username a publié un post\n", FILE_APPEND);
-        }
-    }
-    header('Location: accueil.php');
-    exit;
-}
-
-require_once __DIR__ . '/../src/header.php';
-debut_page('Publication', 'php.css');
-echo "<div>Erreur : message vide.<br><a href='accueil.php'>Retour</a></div>";
-fin_page();
+header('Location: accueil.php');
+exit;

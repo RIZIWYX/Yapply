@@ -1,38 +1,33 @@
 <?php
+/**
+ * Ajout d'un ami.
+ * Avant : pseudo ajouté dans data/amis/<pseudo>.txt, SANS vérifier que le
+ * membre existe (on pouvait « ajouter » n'importe quel texte).
+ */
 require_once __DIR__ . '/../src/header.php';
+$u = exiger_connexion();
 
-$current_username = utilisateur_courant();
-if ($current_username === null) {
-    header('Location: connexion.html');
+$pseudo = trim($_POST['username'] ?? '');
+$ami    = $pseudo !== '' ? membre_par_pseudo($pseudo) : null;
+
+if ($ami === null) {
+    page_notice('Utilisateur introuvable.', [], 'accueil.php', "Retour à l'accueil");
+    exit;
+}
+if ($ami['id'] === $u['id']) {
+    page_notice('Vous ne pouvez pas vous ajouter vous-même.', [], 'accueil.php', "Retour à l'accueil");
     exit;
 }
 
-debut_page('Yapply', 'php.css');
+// ON CONFLICT DO NOTHING : la clé primaire (utilisateur_id, ami_id) empêche les doublons
+$stmt = db()->prepare(
+    'INSERT INTO amities (utilisateur_id, ami_id) VALUES (:moi, :ami) ON CONFLICT DO NOTHING'
+);
+$stmt->execute(['moi' => $u['id'], 'ami' => $ami['id']]);
 
-if (isset($_POST['username']) && trim($_POST['username']) !== '') {
-    $ami = trim($_POST['username']);
-    // Nom de fichier basé sur le pseudo EXACT (corrige l'incohérence de casse qui empêchait l'affichage des amis)
-    $fichier = DOSSIER_AMIS . '/' . $current_username . '.txt';
-    $dejaAmi = false;
-
-    if (file_exists($fichier)) {
-        foreach (file($fichier, FILE_IGNORE_NEW_LINES) as $l) {
-            if (trim($l) === $ami) { $dejaAmi = true; break; }
-        }
-    }
-
-    if ($dejaAmi) {
-        echo "<div><h2>$ami est déjà dans votre liste d'amis.</h2>";
-        echo "<a href='accueil.php'>Retour à l'accueil</a><br></div>";
-    } else {
-        file_put_contents($fichier, $ami . "\n", FILE_APPEND);
-        file_put_contents(DOSSIER_NOTIFS . '/' . $ami . '.txt', "$current_username vous a ajouté à sa liste d'amis\n", FILE_APPEND);
-        echo "<div><h2>$ami a été ajouté à vos amis !</h2>";
-        echo "<a href='accueil.php'>Retour à l'accueil</a><br></div>";
-    }
+if ($stmt->rowCount() === 0) {
+    page_notice($ami['pseudo'] . ' est déjà dans votre liste d\'amis.', [], 'accueil.php', "Retour à l'accueil");
 } else {
-    echo "<div><h2>Aucun utilisateur spécifié.</h2>";
-    echo "<a href='accueil.php'>Retour à l'accueil</a><br></div>";
+    notifier((int) $ami['id'], 'ami');
+    page_notice($ami['pseudo'] . ' a été ajouté à vos amis !', [], 'accueil.php', "Retour à l'accueil", false);
 }
-
-fin_page();

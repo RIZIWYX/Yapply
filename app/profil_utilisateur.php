@@ -1,51 +1,41 @@
 <?php
+/** Mon profil : infos du compte connecté + ses posts (lus en base). */
 require_once __DIR__ . '/../src/header.php';
+$u = exiger_connexion();
 
-$champs = donnees_session();
-if ($champs === null) {
-    header('Location: connexion.html');
-    exit;
-}
+$stmt = db()->prepare('SELECT texte, image FROM posts WHERE auteur_id = :id ORDER BY cree_le DESC');
+$stmt->execute(['id' => $u['id']]);
+$posts = $stmt->fetchAll();
 
-debut_page('Profil utilisateur', 'profil_utilisateur.css');
+debut_page('Mon profil', 'profil.css');
+barre_navigation('profil');
+?>
+<main class="page profil">
+  <section class="carte profil-carte">
+    <img class="avatar-rond grand" src="<?= url_avatar($u['avatar']) ?>" alt="Avatar">
+    <div class="profil-infos">
+      <h2><?= e($u['pseudo']) ?></h2>
+      <dl>
+        <dt>Nom d'utilisateur</dt><dd><?= e($u['pseudo']) ?></dd>
+        <dt>Adresse mail</dt><dd><?= e($u['mail']) ?></dd>
+        <dt>Prénom</dt><dd><?= e($u['prenom']) ?></dd>
+        <dt>Nom</dt><dd><?= e($u['nom']) ?></dd>
+      </dl>
+      <div class="bio"><h3>Bio</h3><p><?= e($u['bio']) ?></p></div>
+    </div>
+    <div class="profil-actions">
+      <a class="btn" href="modifier.php"><i class='bx bx-edit-alt'></i>Modifier</a>
+      <a class="btn btn-discret" href="accueil.php"><i class='bx bx-arrow-back'></i>Retour</a>
+    </div>
+  </section>
 
-$username = $champs[0];
-
-echo "<div class='utilisateur'><div class='info'>";
-echo "<h2>Informations de l'utilisateur :</h2>";
-echo "<p><strong>Nom d'utilisateur :</strong> " . $champs[0] . "</p>";
-echo "<p><strong>Adresse mail :</strong> " . ($champs[3] ?? '') . "</p>";
-echo "<p><strong>Prénom :</strong> " . ($champs[4] ?? '') . "</p>";
-echo "<p><strong>Nom :</strong> " . ($champs[5] ?? '') . "</p>";
-echo "</div>";
-
-$avatar = AVATAR_DEFAUT;
-$bio = '';
-if (file_exists(FICHIER_SESSION_PERSO)) {
-    $p = explode(';', trim((string) @file_get_contents(FICHIER_SESSION_PERSO)));
-    $avatar = $p[1] ?? AVATAR_DEFAUT;
-    $bio    = $p[2] ?? '';
-}
-echo "<img class='avatar' src='" . ASSETS . "/img/avatar/$avatar.jpg' alt='Avatar'>";
-echo "<br><br><div class='bio'><h2>Bio :</h2><br>" . $bio . "</div>";
-
-echo "<div class='boutton'><h2 class='titre'>Yapply</h2>";
-echo "<a class='retour' href='accueil.php'>Retour</a>";
-echo "<a class='modifier' href='modifier.html'>Modifier</a>";
-echo "</div></div>";
-
-if (file_exists(FICHIER_POSTS)) {
-    echo "<h3 class='post default'>Posts de $username :</h3><br>";
-    $aDesPosts = false;
-    foreach (file(FICHIER_POSTS, FILE_IGNORE_NEW_LINES) as $lp) {
-        $pd = explode(';', trim($lp));
-        if (($pd[0] ?? '') === $username && isset($pd[1])) {
-            $contenu = explode('|', trim($pd[1]));
-            echo "<br><br><p class='post'>" . $contenu[0] . "</p>";
-            $aDesPosts = true;
-        }
-    }
-    if (!$aDesPosts) { echo "<p>Aucun post trouvé pour cet utilisateur.</p>"; }
-}
-
-fin_page();
+  <section class="profil-posts">
+    <h3>Posts de <?= e($u['pseudo']) ?></h3>
+    <?php if (!$posts): ?>
+      <p class="carte vide">Aucun post trouvé pour cet utilisateur.</p>
+    <?php else: foreach ($posts as $p): ?>
+      <p class="carte post"><?= e($p['texte'] ?? '') ?></p>
+    <?php endforeach; endif; ?>
+  </section>
+</main>
+<?php fin_page(); ?>

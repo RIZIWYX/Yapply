@@ -1,0 +1,69 @@
+/* Connexion et inscription */
+
+.auth {
+  width: min(450px, 100%);
+  padding: var(--esp-6) var(--esp-6) var(--esp-5);
+  text-align: center;
+}
+
+.auth-large {
+  width: min(760px, 100%);
+}
+
+.auth-logo img {
+  width: 72px;
+  margin: 0 auto var(--esp-2);
+  transition: transform var(--transition);
+}
+
+.auth-logo:hover img {
+  transform: rotate(-6deg) scale(1.05);
+}
+
+.auth h2 {
+  font-size: 2.25rem;
+  margin-bottom: var(--esp-5);
+}
+
+.auth-form {
+  display: grid;
+  gap: var(--esp-4);
+  text-align: left;
+}
+
+.grille-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grille-2 .pleine-largeur {
+  grid-column: 1 / -1;
+}
+
+.auth-form .btn {
+  margin-top: var(--esp-2);
+}
+
+.auth-lien {
+  margin-top: var(--esp-5);
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.auth-lien a {
+  color: var(--prune);
+  text-decoration: none;
+}
+
+.auth-lien a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 620px) {
+  .auth {
+    padding: var(--esp-5) var(--esp-4);
+  }
+
+  .grille-2 {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,40 +1,17 @@
 <?php
+/** Modification de l'avatar et/ou de la bio depuis la page « Modifier mon profil ». */
 require_once __DIR__ . '/../src/config.php';
+$u = exiger_connexion();
 
-$username = utilisateur_courant();
-if ($username === null) {
-    header('Location: connexion.html');
-    exit;
-}
-
-function maj_fichier(string $fichier, string $pseudo, string $nouvelleLigne): void {
-    if (!file_exists($fichier)) {
-        file_put_contents($fichier, $nouvelleLigne . "\n", FILE_APPEND);
-        return;
-    }
-    $sortie = '';
-    $trouve = false;
-    foreach (file($fichier, FILE_IGNORE_NEW_LINES) as $l) {
-        $champs = explode(';', $l);
-        if (($champs[0] ?? '') === $pseudo) { $sortie .= $nouvelleLigne . "\n"; $trouve = true; }
-        else { $sortie .= $l . "\n"; }
-    }
-    if (!$trouve) { $sortie .= $nouvelleLigne . "\n"; }
-    file_put_contents($fichier, $sortie);
-}
-
-$bio    = $_POST['biographie'] ?? '';
+// Champ vide => on garde la valeur actuelle
 $avatar = $_POST['avatar_number'] ?? '';
+$bio    = trim($_POST['biographie'] ?? '');
+if ($avatar === '' || !avatar_valide($avatar)) { $avatar = $u['avatar']; }
+if ($bio === '') { $bio = $u['bio']; }
+$bio = mb_substr($bio, 0, 500);
 
-$ancien = file_exists(FICHIER_SESSION_PERSO)
-    ? explode(';', trim((string) file_get_contents(FICHIER_SESSION_PERSO)))
-    : [];
-if ($avatar === '') { $avatar = $ancien[1] ?? AVATAR_DEFAUT; }
-if ($bio === '')    { $bio    = $ancien[2] ?? ''; }
+db()->prepare('UPDATE utilisateurs SET avatar = :a, bio = :b WHERE id = :id')
+    ->execute(['a' => $avatar, 'b' => $bio, 'id' => $u['id']]);
 
-$nouvelleLigne = "$username;$avatar;$bio";
-maj_fichier(FICHIER_PERSO, $username, $nouvelleLigne);
-maj_fichier(FICHIER_SESSION_PERSO, $username, $nouvelleLigne);
-
-header('Location: accueil.php');
+header('Location: profil_utilisateur.php');
 exit;

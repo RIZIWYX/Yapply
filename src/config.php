@@ -1,41 +1,205 @@
 <?php
+/**
+ * Configuration commune + utilisateur connecté.
+ * Toutes les données (comptes, sessions, posts, amis, messages, notifications)
+ * sont dans PostgreSQL : plus aucun fichier texte n'est lu ni écrit.
+ */
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/session.php';
 
-
-define('RACINE', dirname(__DIR__));            // dossier racine du projet
-define('DOSSIER_DONNEES', RACINE . '/data');   // « base de données » en fichiers texte
-
-/* --- Fichiers de données (chemins disque) --- */
-define('FICHIER_COMPTES',       DOSSIER_DONNEES . '/comptes.txt');         // pseudo;mdp;mdp;mail;prenom;nom
-define('FICHIER_PERSO',         DOSSIER_DONNEES . '/personnalisation.txt'); // pseudo;avatar;bio
-define('FICHIER_POSTS',         DOSSIER_DONNEES . '/posts.txt');            // pseudo;contenu|likes|commentaires
-define('FICHIER_SESSION',       DOSSIER_DONNEES . '/session.txt');          // utilisateur connecté
-define('FICHIER_SESSION_PERSO', DOSSIER_DONNEES . '/session_perso.txt');
-
-/* --- Dossiers de données (chemins disque) --- */
-define('DOSSIER_IMAGES',   DOSSIER_DONNEES . '/images');        // images des posts
-define('DOSSIER_AMIS',     DOSSIER_DONNEES . '/amis');
-define('DOSSIER_NOTIFS',   DOSSIER_DONNEES . '/notifications');
-define('DOSSIER_MESSAGES', DOSSIER_DONNEES . '/messagerie');
+define('RACINE', dirname(__DIR__));
 
 /* --- URL relatives (depuis une page de app/) --- */
-define('ASSETS',     '../assets');       // css, logo, avatars
-define('URL_IMAGES', '../data/images');  // images des posts (affichage web)
-define('AVATAR_DEFAUT', 'avatar1');      // avatar par défaut
+define('ASSETS',     '../assets');
+define('AVATAR_DEFAUT', 'avatar1');
 
-/** Renvoie tous les champs du compte connecté (tableau), ou null si personne. */
-function donnees_session(): ?array {
-    if (!file_exists(FICHIER_SESSION)) {
-        return null;
+/*
+ * Aucun formulaire de Yapply n'envoie de tableau (champ[]=...). Avant, un
+ * paramètre comme ?avec[]=x faisait planter trim() ou preg_match() (erreur 500).
+ * On refuse donc ces requêtes ici, une fois pour toutes, avant tout traitement.
+ */
+foreach ([$_GET, $_POST] as $parametres) {
+    foreach ($parametres as $valeur) {
+        if (!is_string($valeur)) {
+            http_response_code(400);
+            header('Content-Type: text/plain; charset=utf-8');
+            exit('Requête invalide.');
+        }
     }
-    $ligne = trim((string) @file_get_contents(FICHIER_SESSION));
-    if ($ligne === '') {
-        return null;
-    }
-    return explode(';', $ligne);
 }
 
-/** Renvoie le pseudo de l'utilisateur connecté, ou null. */
+demarrer_session();
+
+/* ------------------------------------------------------------------
+ * Protection CSRF (jeton synchronisé)
+ * Un site tiers peut faire envoyer un formulaire à Yapply par le
+ * navigateur d'un membre connecté (le cookie part tout seul). Il ne peut
+ * pas, en revanche, lire le jeton secret caché dans nos formulaires :
+ * toute requête POST sans le bon jeton est donc refusée.
+ * ------------------------------------------------------------------ */
+
+/** Jeton CSRF de la session (créé à la première utilisation). */
+function jeton_csrf(): string {
+    if (empty($_SESSION['csrf'])) {
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));   // 256 bits imprévisibles
+    }
+    return $_SESSION['csrf'];
+}
+
+/** Champ caché à placer dans CHAQUE <form method="post">. */
+function champ_csrf(): string {
+    return '<input type="hidden" name="csrf" value="' . jeton_csrf() . '">';
+}
+
+/** Nouveau jeton (à appeler après une connexion / inscription). */
+function renouveler_csrf(): void {
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+}
+
+/** Refuse la requête POST si le jeton est absent ou faux. */
+function verifier_csrf(): void {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { return; }
+
+    $recu = $_POST['csrf'] ?? '';
+    // hash_equals : comparaison en temps constant (pas de fuite par le chronométrage)
+    if (!is_string($recu) || empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $recu)) {
+        http_response_code(403);
+        require_once __DIR__ . '/header.php';
+        page_notice('Requête refusée', ['Le formulaire a expiré ou ne vient pas de Yapply. Rechargez la page et réessayez.'], 'accueil.php', "Retour à l'accueil");
+        exit;
+    }
+}
+
+// Vérification automatique : TOUTES les pages chargent config.php,
+// donc toutes les requêtes POST du site sont contrôlées ici, d'un coup.
+verifier_csrf();
+
+/* ------------------------------------------------------------------
+ * Anti brute force (table tentatives_connexion)
+ * Partagé par la connexion ET par la modification du compte, qui demande
+ * le mot de passe actuel : sans limite, ce formulaire permettrait de
+ * deviner le mot de passe d'un compte dont on aurait volé la session.
+ * ------------------------------------------------------------------ */
+const ESSAIS_MAX  = 5;   // échecs autorisés...
+const FENETRE_MIN = 15;  // ...par tranche de 15 minutes
+
+/** IP du visiteur (Vercel la transmet dans X-Forwarded-For). */
+function ip_visiteur(): string {
+    $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '')[0]);
+    return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
+}
+
+/** Vrai si ce compte ou cette IP a trop d'échecs récents. */
+function trop_de_tentatives(string $identifiant, string $ip): bool {
+    $stmt = db()->prepare(
+        "SELECT count(*) FROM tentatives_connexion
+         WHERE reussie = false
+           AND tente_le > now() - make_interval(mins => :fenetre)
+           AND (identifiant = :id OR ip = CAST(:ip AS inet))"
+    );
+    $stmt->execute(['fenetre' => FENETRE_MIN, 'id' => $identifiant, 'ip' => $ip]);
+    return (int) $stmt->fetchColumn() >= ESSAIS_MAX;
+}
+
+/**
+ * Clé sous laquelle on compte les échecs d'un compte existant.
+ * Avant : on comptait le texte saisi, donc le pseudo et le mail d'un même compte
+ * avaient chacun leur compteur (10 essais au lieu de 5), et changer de pseudo
+ * remettait le compteur à zéro. L'id, lui, ne change jamais.
+ * Un pseudo ne peut pas contenir « : », donc pas de confusion avec un texte saisi.
+ */
+function cle_compte(int $id): string {
+    return 'compte:' . $id;
+}
+
+/** Enregistre une vérification de mot de passe, réussie ou non. */
+function noter_tentative(string $identifiant, string $ip, bool $reussie): void {
+    db()->prepare('INSERT INTO tentatives_connexion (identifiant, ip, reussie) VALUES (:id, CAST(:ip AS inet), :ok)')
+        ->execute(['id' => $identifiant, 'ip' => $ip, 'ok' => $reussie ? 'true' : 'false']);
+}
+
+/**
+ * Crée une notification pour $destinataire de la part de l'utilisateur connecté.
+ * $type : post | like | commentaire | ami | message (type ENUM en base).
+ * On ne se notifie jamais soi-même.
+ */
+function notifier(int $destinataire, string $type, ?int $postId = null): void {
+    $auteur = utilisateur_id();
+    if ($auteur === null || $auteur === $destinataire) { return; }
+    db()->prepare(
+        'INSERT INTO notifications (destinataire_id, auteur_id, type, post_id)
+         VALUES (:dest, :auteur, CAST(:type AS type_notification), :post)'
+    )->execute(['dest' => $destinataire, 'auteur' => $auteur, 'type' => $type, 'post' => $postId]);
+}
+
+/** Échappe un texte avant de l'afficher dans du HTML (anti-XSS). */
+function e(?string $texte): string {
+    return htmlspecialchars($texte ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/** Id de l'utilisateur connecté, ou null. */
+function utilisateur_id(): ?int {
+    return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+}
+
+/**
+ * Ligne complète de l'utilisateur connecté (sans le hash du mot de passe),
+ * ou null. Mise en cache pour ne faire qu'une requête par page.
+ */
+function utilisateur(): ?array {
+    static $cache = false;
+    if ($cache !== false) { return $cache; }
+
+    $id = utilisateur_id();
+    if ($id === null) { return $cache = null; }
+
+    $stmt = db()->prepare(
+        'SELECT id, pseudo, mail, prenom, nom, avatar, bio
+         FROM utilisateurs WHERE id = :id'
+    );
+    $stmt->execute(['id' => $id]);
+    $u = $stmt->fetch();
+    if (!$u) {                       // compte supprimé entre-temps
+        $_SESSION = [];
+        return $cache = null;
+    }
+    return $cache = $u;
+}
+
+/** Pseudo de l'utilisateur connecté, ou null. */
 function utilisateur_courant(): ?string {
-    $champs = donnees_session();
-    return $champs[0] ?? null;
+    return utilisateur()['pseudo'] ?? null;
+}
+
+/** Avatar de l'utilisateur connecté (ex. « avatar3 »). */
+function avatar_courant(): string {
+    return utilisateur()['avatar'] ?? AVATAR_DEFAUT;
+}
+
+/** Redirige vers la connexion si personne n'est connecté. Renvoie l'utilisateur. */
+function exiger_connexion(): array {
+    $u = utilisateur();
+    if ($u === null) {
+        header('Location: connexion.php');
+        exit;
+    }
+    return $u;
+}
+
+/** Cherche un membre par pseudo (sans le hash du mot de passe), ou null. */
+function membre_par_pseudo(string $pseudo): ?array {
+    $stmt = db()->prepare('SELECT id, pseudo, avatar FROM utilisateurs WHERE pseudo = :p');
+    $stmt->execute(['p' => $pseudo]);
+    return $stmt->fetch() ?: null;
+}
+
+/** Vrai si $avatar fait partie des 9 avatars proposés (liste blanche). */
+function avatar_valide(string $avatar): bool {
+    return (bool) preg_match('/^avatar[1-9]$/', $avatar);
+}
+
+/** URL de l'image d'un avatar. */
+function url_avatar(string $avatar): string {
+    if (!avatar_valide($avatar)) { $avatar = AVATAR_DEFAUT; }
+    return ASSETS . '/img/avatar/' . $avatar . '.jpg';
 }

@@ -1,0 +1,149 @@
+/* Messagerie : liste des discussions (discussion.php) et conversation (message.php) */
+
+/* ----------- LISTE ----------- */
+.discussions {
+  display: grid;
+  gap: var(--esp-5);
+  max-width: 640px;
+  justify-items: start;
+}
+
+.discussions h1 {
+  color: var(--noir);
+}
+
+.discussions .carte {
+  width: 100%;
+}
+
+.liste-discussions {
+  list-style: none;
+  display: grid;
+  gap: var(--esp-2);
+}
+
+.conversation {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  border: 1px solid var(--verre-bord);
+  border-radius: var(--rayon-m);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--noir);
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition), transform var(--transition);
+}
+
+.conversation span {
+  flex: 1;
+}
+
+.conversation:hover {
+  background: rgba(255, 255, 255, 0.85);
+  transform: translateX(3px);
+}
+
+/* ----------- CONVERSATION ----------- */
+.conversation-page {
+  max-width: 760px;
+}
+
+.chat {
+  height: calc(100vh - var(--hauteur-bandeau) - 2 * var(--esp-6));
+  min-height: 420px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.chat-entete {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  border-bottom: 1px solid rgba(72, 66, 80, 0.15);
+  background: rgba(191, 172, 207, 0.35);
+}
+
+.chat-entete h2 {
+  font-size: 1.5rem;
+}
+
+.messages {
+  overflow-y: auto;
+  padding: var(--esp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  scroll-behavior: smooth;
+}
+
+.message {
+  max-width: 70%;
+  padding: var(--esp-2) var(--esp-4);
+  border-radius: 18px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  box-shadow: var(--ombre-s);
+}
+
+.message strong {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.envoye {
+  align-self: flex-end;
+  background: var(--prune);
+  color: var(--blanc);
+  border-bottom-right-radius: 4px;
+}
+
+.recu {
+  align-self: flex-start;
+  background: var(--lavande-clair);
+  color: var(--noir);
+  border-bottom-left-radius: 4px;
+}
+
+.zone-saisie {
+  display: flex;
+  gap: var(--esp-2);
+  padding: var(--esp-3) var(--esp-4);
+  border-top: 1px solid rgba(72, 66, 80, 0.15);
+}
+
+.zone-saisie .champ {
+  flex: 1;
+}
+
+.zone-saisie input {
+  border-radius: var(--rayon-pilule);
+  background: rgba(72, 66, 80, 0.06);
+  border-color: rgba(72, 66, 80, 0.2);
+}
+
+.zone-saisie .btn-icone {
+  border-radius: 50%;
+}
+
+@media (max-width: 560px) {
+  .chat {
+    height: calc(100vh - var(--hauteur-bandeau) - 2 * var(--esp-4));
+  }
+
+  .messages {
+    padding: var(--esp-3);
+  }
+
+  .message {
+    max-width: 85%;
+  }
+}

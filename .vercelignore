@@ -1,0 +1,7 @@
+# Inutile en production
+data/
+doc/
+tests/
+database/
+.env
+.env.local

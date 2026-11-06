@@ -1,29 +1,27 @@
 <?php
+/**
+ * Ajout d'un commentaire.
+ * Avant : texte collé au bout de la ligne du post dans posts.txt (avec "|").
+ */
 require_once __DIR__ . '/../src/config.php';
+$u = exiger_connexion();
 
-$username = utilisateur_courant();
-if ($username === null) {
-    header('Location: connexion.html');
-    exit;
-}
+$contenu = trim($_POST['commentaire'] ?? '');
+$postId  = filter_var($_POST['post_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-$commentaire = isset($_POST['commentaire']) ? trim($_POST['commentaire']) : '';
-$post_id = (isset($_POST['post_id']) && $_POST['post_id'] !== '') ? (int) $_POST['post_id'] : -1;
+if ($contenu !== '' && mb_strlen($contenu) <= 1000 && $postId !== false) {
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT auteur_id FROM posts WHERE id = :id');
+    $stmt->execute(['id' => $postId]);
+    $auteur = $stmt->fetchColumn();
 
-if ($commentaire !== '' && $post_id >= 0 && file_exists(FICHIER_POSTS)) {
-    $lignes = file(FICHIER_POSTS, FILE_IGNORE_NEW_LINES);
-    if (isset($lignes[$post_id])) {
-        $lignes[$post_id] .= '|' . $username . ':' . str_replace('|', '', $commentaire);
-        file_put_contents(FICHIER_POSTS, implode("\n", $lignes) . "\n");
-
-        if (is_dir(DOSSIER_NOTIFS)) {
-            foreach (scandir(DOSSIER_NOTIFS) as $f) {
-                if ($f[0] === '.' || $f === $username . '.txt') { continue; }
-                file_put_contents(DOSSIER_NOTIFS . '/' . $f, "$username a commenté un post\n", FILE_APPEND);
-            }
-        }
+    if ($auteur !== false) {
+        $pdo->prepare('INSERT INTO commentaires (post_id, auteur_id, contenu) VALUES (:p, :a, :c)')
+            ->execute(['p' => $postId, 'a' => $u['id'], 'c' => $contenu]);
+        notifier((int) $auteur, 'commentaire', $postId);
     }
 }
 
-header('Location: accueil.php');
+// On rouvre la fenêtre des commentaires du même post
+header('Location: accueil.php?coms=' . ($postId ?: ''));
 exit;

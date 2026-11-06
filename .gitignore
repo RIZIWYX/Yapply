@@ -14,3 +14,8 @@ data/images/*
 !data/notifications/.gitkeep
 !data/messagerie/.gitkeep
 !data/images/.gitkeep
+
+# Secrets et config locale (ne jamais versionner)
+.env
+.env.local
+.vercel

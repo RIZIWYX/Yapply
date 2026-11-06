@@ -1,91 +1,77 @@
 <?php
+/**
+ * Modification du compte (pseudo, mail, nom, prénom, mot de passe).
+ * Avant : réécriture de comptes.txt, posts.txt et renommage des fichiers d'amis.
+ * Maintenant : un seul UPDATE ; les posts/amis sont liés à l'id, pas au pseudo.
+ */
 require_once __DIR__ . '/../src/config.php';
-
-$current = donnees_session();
-if ($current === null) {
-    header('Location: connexion.html');
-    exit;
-}
-
-/** Met à jour la ligne de l'utilisateur dans un fichier « pseudo;... ». */
-function maj_fichier(string $fichier, string $pseudo, string $nouvelleLigne): void {
-    if (!file_exists($fichier)) { return; }
-    $sortie = '';
-    foreach (file($fichier, FILE_IGNORE_NEW_LINES) as $l) {
-        $champs = explode(';', $l);
-        $sortie .= ((($champs[0] ?? '') === $pseudo) ? $nouvelleLigne : $l) . "\n";
-    }
-    file_put_contents($fichier, $sortie);
-}
-
-$current_username = $current[0];
+$u = exiger_connexion();
 
 // Champ vide => on garde l'ancienne valeur
-$user          = ($_POST['username'] ?? '')      ?: $current_username;
-$password      = ($_POST['password'] ?? '')      ?: ($current[1] ?? '');
-$password_conf = ($_POST['password_conf'] ?? '') ?: ($current[2] ?? '');
-$mail          = ($_POST['mail'] ?? '')          ?: ($current[3] ?? '');
-$prenom        = ($_POST['prenom'] ?? '')        ?: ($current[4] ?? '');
-$nom           = ($_POST['nom'] ?? '')           ?: ($current[5] ?? '');
+$user   = trim($_POST['username'] ?? '') ?: $u['pseudo'];
+$mail   = trim($_POST['mail'] ?? '')     ?: $u['mail'];
+$prenom = trim($_POST['prenom'] ?? '')   ?: $u['prenom'];
+$nom    = trim($_POST['nom'] ?? '')      ?: $u['nom'];
+$password      = $_POST['password'] ?? '';
+$password_conf = $_POST['password_conf'] ?? '';
 
 $erreurs = [];
+if (!preg_match('/^[A-Za-z0-9_.-]{2,30}$/', $user))    { $erreurs[] = "Pseudo invalide : 2 à 30 caractères (lettres, chiffres, _ . -)."; }
+if (!filter_var($mail, FILTER_VALIDATE_EMAIL))         { $erreurs[] = "Adresse mail invalide."; }
+if (mb_strlen($prenom) < 2 || mb_strlen($prenom) > 50) { $erreurs[] = "Le prénom doit contenir entre 2 et 50 caractères."; }
+if (mb_strlen($nom) < 2 || mb_strlen($nom) > 50)       { $erreurs[] = "Le nom doit contenir entre 2 et 50 caractères."; }
+if ($password !== '' || $password_conf !== '') {
+    if (strlen($password) < 8)        { $erreurs[] = "Le mot de passe doit contenir au moins 8 caractères."; }
+    if ($password_conf !== $password) { $erreurs[] = "Les mots de passe doivent être identiques."; }
+}
 
-// Unicité (en ignorant sa propre ligne), index mail corrigé : [3]
-if (file_exists(FICHIER_COMPTES)) {
-    foreach (file(FICHIER_COMPTES, FILE_IGNORE_NEW_LINES) as $l) {
-        $c = explode(';', $l);
-        if (($c[0] ?? '') === $current_username) { continue; }
-        if ($user !== $current_username && ($c[0] ?? '') === $user) { $erreurs[] = "Nom d'utilisateur déjà utilisé."; break; }
-        if ($mail !== ($current[3] ?? '') && ($c[3] ?? '') === $mail) { $erreurs[] = "Cette adresse mail est déjà utilisée."; break; }
+/*
+ * Avant : le mail et le mot de passe se changeaient sans l'ancien mot de passe.
+ * Quelqu'un qui avait la session (cookie volé, ordinateur resté ouvert) pouvait
+ * donc s'approprier le compte définitivement. On exige maintenant le mot de
+ * passe actuel, avec la même limite d'essais que la connexion.
+ */
+$changeMail = strcasecmp($mail, $u['mail']) !== 0;   // mail insensible à la casse (citext)
+$changeMdp  = $password !== '' || $password_conf !== '';
+if ($changeMail || $changeMdp) {
+    $ip  = ip_visiteur();
+    $cle = cle_compte((int) $u['id']);   // même compteur que la connexion, et un changement de pseudo ne le remet pas à zéro
+    if (trop_de_tentatives($cle, $ip)) {
+        require_once __DIR__ . '/../src/header.php';
+        page_notice('Trop de tentatives', ['Trop d\'essais de mot de passe. Réessayez dans ' . FENETRE_MIN . ' minutes.'], 'modifier.php', 'Retour');
+        exit;
+    }
+    $actuel = $_POST['password_actuel'] ?? '';
+    $stmt = db()->prepare('SELECT mot_de_passe FROM utilisateurs WHERE id = :id');
+    $stmt->execute(['id' => $u['id']]);
+    $ok = is_string($actuel) && password_verify($actuel, (string) $stmt->fetchColumn());
+    noter_tentative($cle, $ip, $ok);
+    if (!$ok) {
+        $erreurs[] = "Mot de passe actuel incorrect : il est obligatoire pour changer l'adresse mail ou le mot de passe.";
     }
 }
-// Validité
-if (strlen($user) < 2)                          { $erreurs[] = "Nom d'utilisateur trop court."; }
-if (strlen($password) < 6)                      { $erreurs[] = "Le mot de passe doit contenir au moins 6 caractères."; }
-if ($password_conf !== $password)               { $erreurs[] = "Les mots de passe doivent être identiques."; }
-if (!filter_var($mail, FILTER_VALIDATE_EMAIL))  { $erreurs[] = "Adresse mail invalide."; }
-if (strlen($prenom) < 2)                        { $erreurs[] = "Le prénom doit contenir au moins 2 caractères."; }
-if (strlen($nom) < 2)                           { $erreurs[] = "Le nom doit contenir au moins 2 caractères."; }
 
 if (!$erreurs) {
-    $ligneCompte = "$user;$password;$password_conf;$mail;$prenom;$nom";
-    maj_fichier(FICHIER_COMPTES, $current_username, $ligneCompte);
-    maj_fichier(FICHIER_SESSION, $current_username, $ligneCompte);
-
-    // Personnalisation : on conserve avatar + bio
-    $perso  = file_exists(FICHIER_SESSION_PERSO)
-        ? explode(';', trim((string) file_get_contents(FICHIER_SESSION_PERSO)))
-        : [];
-    $avatar = $perso[1] ?? AVATAR_DEFAUT;
-    $bio    = $perso[2] ?? '';
-    $lignePerso = "$user;$avatar;$bio";
-    maj_fichier(FICHIER_PERSO, $current_username, $lignePerso);
-    maj_fichier(FICHIER_SESSION_PERSO, $current_username, $lignePerso);
-
-    // Renommer le pseudo dans les posts
-    if (file_exists(FICHIER_POSTS)) {
-        $lignes = [];
-        foreach (file(FICHIER_POSTS, FILE_IGNORE_NEW_LINES) as $l) {
-            $c = explode(';', $l);
-            if (($c[0] ?? '') === $current_username) { $c[0] = $user; }
-            $lignes[] = implode(';', $c);
+    try {
+        $sql    = 'UPDATE utilisateurs SET pseudo = :pseudo, mail = :mail, prenom = :prenom, nom = :nom';
+        $params = ['pseudo' => $user, 'mail' => $mail, 'prenom' => $prenom, 'nom' => $nom, 'id' => $u['id']];
+        if ($password !== '') {
+            $sql .= ', mot_de_passe = :mdp';
+            $params['mdp'] = password_hash($password, PASSWORD_DEFAULT);
         }
-        file_put_contents(FICHIER_POSTS, implode("\n", $lignes) . "\n");
+        // WHERE id = id de la SESSION : impossible de modifier le compte de quelqu'un d'autre
+        db()->prepare($sql . ' WHERE id = :id')->execute($params);
+
+        if ($password !== '') { session_regenerate_id(true); }
+        header('Location: profil_utilisateur.php');
+        exit;
+    } catch (PDOException $ex) {
+        if ($ex->getCode() !== '23505') { throw $ex; }
+        $erreurs[] = str_contains($ex->getMessage(), 'mail')
+            ? "Cette adresse mail est déjà utilisée."
+            : "Nom d'utilisateur déjà utilisé.";
     }
-
-    // Renommer le fichier d'amis
-    $ancienAmis  = DOSSIER_AMIS . '/' . $current_username . '.txt';
-    $nouveauAmis = DOSSIER_AMIS . '/' . $user . '.txt';
-    if (file_exists($ancienAmis)) { @rename($ancienAmis, $nouveauAmis); }
-
-    header('Location: profil_utilisateur.php');
-    exit;
 }
 
 require_once __DIR__ . '/../src/header.php';
-debut_page('Modifier', 'php.css');
-echo '<div>';
-foreach ($erreurs as $e) { echo $e . '<br>'; }
-echo "<a href='modifier.html'>Retour</a>";
-echo '</div>';
-fin_page();
+page_notice('Modification impossible', $erreurs, 'modifier.php', 'Retour');
