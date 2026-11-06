@@ -10,7 +10,7 @@ require_once __DIR__ . '/config.php';
  * $css est le nom d'un fichier de assets/css/pages/ (ex. « accueil.css »), ou '' pour aucun.
  */
 function debut_page(string $titre, string $css = '', string $classe_body = ''): void {
-    $titre_complet = ($titre === 'Yapply') ? 'Yapply' : $titre . ' · Yapply';
+    $titre_complet = ($titre === 'Yapply') ? 'Yapply' : $titre . ' - Yapply';
     echo '<!DOCTYPE html>' . "\n";
     echo '<html lang="fr">' . "\n";
     echo '<head>' . "\n";
@@ -60,7 +60,7 @@ function barre_navigation(string $actif = ''): void {
 
 /** Petit pied de page commun (mentions du projet). */
 function pied_page(): void {
-    echo '<footer class="pied">Projet Outils de développement Web · Benadjaoud Accyl &amp; Rayane Graine · 2025</footer>' . "\n";
+    echo '<footer class="pied">Projet Outils de développement Web - Benadjaoud Accyl &amp; Rayane Graine - 2025</footer>' . "\n";
 }
 
 function fin_page(): void {
