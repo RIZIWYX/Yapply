@@ -31,7 +31,9 @@ L1 IEEEA) par **Rayane Graïne** et **Accyl Benadjaoud**.
 
 ## Sécurité
 
-Mesures mises en place sur cette branche, en réponse à [l'audit](doc/AUDIT_SECURITE_YAPPLY.md) :
+Mesures mises en place sur cette branche, en réponse à [l'audit](doc/AUDIT_SECURITE_YAPPLY.md).
+Le détail faille par faille (catégorie OWASP, CWE, gravité, commit du correctif) est dans
+**[SECURITY.md](SECURITY.md)**.
 
 - **Mots de passe** hachés avec `password_hash()`, et vérification bloquée temporairement
   après 5 échecs en 15 minutes pour un même compte (qu'on saisisse le pseudo ou le mail)
